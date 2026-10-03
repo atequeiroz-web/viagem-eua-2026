@@ -12,6 +12,9 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.5.3', '03/10/2026', [
+    'Mapa: tocar no marco mostra embaixo do mapa as coordenadas e o resumo do gasto; tocar no resumo abre a despesa completa.'
+  ]],
   ['1.5.2', '03/10/2026', [
     'Local registrado mostra as coordenadas e a precisão; ao tocar, aparece a confirmação.',
     'O texto não passa mais por baixo do relógio e da bateria ao rolar a tela.'

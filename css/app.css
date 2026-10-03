@@ -1042,3 +1042,13 @@ body::after {
   background: rgba(238, 241, 246, 0.86);
   -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
 }
+
+/* 1.5.3: resumo do gasto embaixo do mapa (como no app da viagem SC) */
+.mapa-previa { border-top: 1px solid var(--linha); background: rgba(255, 255, 255, 0.92); }
+.previa-coord { display: flex; align-items: center; gap: 6px; padding: 10px 14px 0; font-size: 13px; font-weight: 700; color: var(--suave); font-variant-numeric: tabular-nums; }
+.previa-coord svg { color: var(--acento); }
+.previa-gasto { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px 14px; border: none; background: none; font: inherit; color: inherit; text-align: left; }
+.previa-gasto:active { background: #F6F7F9; }
+.previa-abrir { display: inline-flex; align-items: center; gap: 2px; margin-top: 2px; font-size: 12px; font-weight: 800; color: var(--acento); }
+.pino-ativo .pino { transform: rotate(-45deg) scale(1.25); box-shadow: 0 0 0 4px rgba(31, 79, 216, 0.35), 0 3px 8px rgba(23, 35, 79, 0.35); }
+.pino-ativo { z-index: 1000 !important; }

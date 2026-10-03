@@ -11,6 +11,7 @@ import { visao } from '../dados.js';
 import { cabecalho, renderizar } from '../ui.js';
 import { icone, iconeCategoria, corCategoria } from '../icones.js';
 import { esc, moeda, dia, diaSemana, hora, dataCurta } from '../util.js';
+import { refBRL } from '../calculos.js';
 import { despesasValidas } from '../calculos.js';
 import { abrirDetalheDespesa } from './detalhe.js';
 
@@ -78,11 +79,12 @@ export const telaMapa = {
         : '') +
       '<section class="cartao mapa-cartao">' +
         (pontos.length
-          ? '<div id="mapa" class="mapa" aria-label="Mapa com as despesas"></div>'
+          ? '<div id="mapa" class="mapa" aria-label="Mapa com as despesas"></div>' +
+            '<div id="mapa-previa" class="mapa-previa" hidden></div>'
           : '<div class="mapa mapa-vazio">' + icone('pin', 28, 1.8) +
             '<p>Nenhuma despesa com local ainda.</p><p class="suave">Ao lançar uma despesa, toque em <strong>Registrar local</strong>.</p></div>') +
       '</section>' +
-      '<p class="nota-pequena mapa-nota">' + todos.length + ' de ' + total + (total === 1 ? ' despesa tem' : ' despesas têm') + ' local registrado. Toque num marco para ver a despesa.</p>' +
+      '<p class="nota-pequena mapa-nota">' + todos.length + ' de ' + total + (total === 1 ? ' despesa tem' : ' despesas têm') + ' local registrado. Toque num marco para ver o gasto; toque no resumo para abrir tudo.</p>' +
       (pontos.length
         ? '<h2 class="secao-titulo">' + (diaSel ? esc(diaSemana(diaSel)) : 'Trajeto') + ' · ' + pontos.length + (pontos.length === 1 ? ' parada' : ' paradas') + '</h2>' +
           '<ul class="lista">' + pontos.map((p, i) =>
@@ -101,7 +103,9 @@ export const telaMapa = {
       const c = ev.target.closest('[data-dia]');
       if (c) { diaSel = c.getAttribute('data-dia'); renderizar(true); return; }
       const p = ev.target.closest('[data-ponto]');
-      if (p) focar(p.getAttribute('data-ponto'), true);
+      if (p) { focar(p.getAttribute('data-ponto')); return; }
+      const prev = ev.target.closest('[data-abrir]');
+      if (prev) abrirDetalheDespesa(prev.getAttribute('data-abrir'));
     });
 
     const alvo = raiz.querySelector('#mapa');
@@ -139,7 +143,7 @@ export const telaMapa = {
           title: p.d.descricao,
           riseOnHover: true
         }).addTo(mapa);
-        m.on('click', () => abrirDetalheDespesa(p.d.id));
+        m.on('click', () => selecionar(p.d.id));
         marcadores.set(p.d.id, m);
       });
 
@@ -147,7 +151,7 @@ export const telaMapa = {
       if (pontos.length === 1) mapa.setView(pontos[0].c, 16);
       else mapa.fitBounds(limites, { padding: [36, 36], maxZoom: 16 });
 
-      if (params.id) focar(params.id, false);
+      if (params.id) focar(params.id);
     }).catch(erro => {
       alvo.classList.add('mapa-vazio');
       alvo.innerHTML = icone('alerta', 28, 1.8) + '<p>' + esc(erro.message) + '</p>';
@@ -161,14 +165,45 @@ export const telaMapa = {
 
 let marcadores = new Map();
 
-function focar(id, abrir) {
+/** Centraliza no marco e mostra o resumo do gasto embaixo do mapa. */
+function focar(id) {
   const m = marcadores.get(id);
   if (mapa && m) {
     mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 16), { animate: true });
     const el = document.getElementById('mapa');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  if (abrir) setTimeout(() => abrirDetalheDespesa(id), m ? 450 : 0);
+  selecionar(id);
+}
+
+/**
+ * Como no app da viagem a Santa Catarina: tocar no marco mostra, embaixo
+ * do mapa, as coordenadas e o gasto; tocar nesse resumo abre a despesa.
+ */
+function selecionar(id) {
+  const v = visao();
+  const d = v.despesas.find(x => x.id === id);
+  const caixa = document.getElementById('mapa-previa');
+  if (!d || !caixa) return;
+
+  marcadores.forEach((m, chave) => {
+    const el = m.getElement && m.getElement();
+    if (el) el.classList.toggle('pino-ativo', chave === id);
+  });
+
+  const ref = refBRL(d, v.cotacoes);
+  caixa.hidden = false;
+  caixa.innerHTML =
+    '<div class="previa-coord">' + icone('pin', 14, 2.2) + esc(d.gps) + '</div>' +
+    '<button type="button" class="previa-gasto" data-abrir="' + esc(d.id) + '">' +
+      '<span class="item-ic">' + iconeCategoria(d.categoria, 20) + '</span>' +
+      '<span class="item-meio"><span class="item-titulo">' + esc(d.descricao) + '</span>' +
+        '<span class="item-sub">' + esc(d.categoria) + ' · ' + esc(dataCurta(d.dataCompra)) + ' ' + esc(hora(d.dataCompra)) +
+        (d.local ? ' · ' + esc(d.local) : '') + ' · pagou ' + esc(d.quemPagou) + '</span></span>' +
+      '<span class="item-dir"><span class="item-valor">' + esc(moeda(d.valorOriginal, d.moeda)) + '</span>' +
+        (d.moeda !== 'BRL' ? '<span class="item-sub">≈ ' + esc(moeda(ref.valor)) + '</span>' : '') +
+        '<span class="previa-abrir">detalhes ' + icone('direita', 14, 2.4) + '</span></span>' +
+    '</button>';
 }
 
 /** Resumo: quantas despesas têm local e qual foi o último lugar. */
