@@ -12,6 +12,11 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.5.0', '03/10/2026', [
+    'Mapa da viagem: cada despesa com local vira um marco na cor da categoria, ligado na ordem do trajeto; tocar no marco abre a despesa.',
+    'Filtro do mapa por dia e lista das paradas.',
+    'Registrar local pelo toque usa o GPS de alta precisão e, se falhar, diz o motivo.'
+  ]],
   ['1.4.2', '03/10/2026', [
     'Tela "Sobre o app".'
   ]],
@@ -132,6 +137,7 @@ export const telaSobre = {
       '<section class="cartao sobre-texto">' +
         '<p><span>Fonte Plus Jakarta Sans © 2020 The Plus Jakarta Sans Project Authors, sob a licença SIL Open Font License 1.1.</span></p>' +
         '<p><span>Cotações: Banco Central do Brasil (PTAX e SGS).</span></p>' +
+        '<p><span>Mapa: Leaflet (licença BSD-2); desenho das ruas © colaboradores do OpenStreetMap e © CARTO.</span></p>' +
       '</section>';
   },
 

@@ -1,8 +1,11 @@
 // Service worker: guarda o app no iPhone para abrir sem sinal.
 // Ao publicar uma versão nova, aumente VERSAO (igual a js/config.js).
 
-const VERSAO = '1.4.2';
+const VERSAO = '1.5.0';
 const CACHE = 'viagem-eua-' + VERSAO;
+// Pedaços do mapa já vistos: guardados à parte, valem entre versões.
+const CACHE_MAPA = 'viagem-eua-mapa';
+const LIMITE_MAPA = 1500;
 
 const ARQUIVOS = [
   './',
@@ -34,6 +37,9 @@ const ARQUIVOS = [
   'js/telas/relatorio.js',
   'js/telas/cadastros.js',
   'js/telas/sobre.js',
+  'js/telas/mapa.js',
+  'vendor/leaflet/leaflet.js',
+  'vendor/leaflet/leaflet.css',
   'fontes/plus-jakarta-sans-latin.woff2',
   'fontes/plus-jakarta-sans-latin-ext.woff2',
   'icones/icone-192.png',
@@ -55,7 +61,7 @@ self.addEventListener('activate', evento => {
     caches.keys()
       .then(chaves => Promise.all(
         chaves
-          .filter(chave => chave.startsWith('viagem-eua-') && chave !== CACHE)
+          .filter(chave => chave.startsWith('viagem-eua-') && chave !== CACHE && chave !== CACHE_MAPA)
           .map(chave => caches.delete(chave))
       ))
       .then(() => self.clients.claim())
@@ -71,6 +77,25 @@ self.addEventListener('fetch', evento => {
   if (pedido.method !== 'GET') return;
 
   const url = new URL(pedido.url);
+
+  // Ruas do mapa: usa o que já está guardado; senão busca e guarda.
+  if (url.hostname.endsWith('basemaps.cartocdn.com')) {
+    evento.respondWith(
+      caches.open(CACHE_MAPA).then(cache =>
+        cache.match(pedido).then(guardada => guardada || fetch(pedido).then(resposta => {
+          if (resposta.ok) {
+            cache.put(pedido, resposta.clone());
+            cache.keys().then(chaves => {
+              if (chaves.length > LIMITE_MAPA) chaves.slice(0, chaves.length - LIMITE_MAPA).forEach(k => cache.delete(k));
+            });
+          }
+          return resposta;
+        }))
+      )
+    );
+    return;
+  }
+
   if (url.origin !== self.location.origin) return;
 
   if (pedido.mode === 'navigate') {

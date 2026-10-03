@@ -203,7 +203,7 @@ export function comprimirFoto(arquivo, ladoMaximo = 1600, qualidade = 0.72) {
   });
 }
 
-export function obterLocalizacao(tempo = 8000) {
+export function obterLocalizacao(tempo = 8000, alta = false) {
   return new Promise(resolver => {
     if (!('geolocation' in navigator)) {
       ultimoErroLocalizacao = 'Este aparelho não oferece localização ao app.';
@@ -219,7 +219,7 @@ export function obterLocalizacao(tempo = 8000) {
             : 'Não foi possível achar o local agora.';
         resolver('');
       },
-      { enableHighAccuracy: false, timeout: tempo, maximumAge: 300000 }
+      { enableHighAccuracy: alta, timeout: tempo, maximumAge: alta ? 60000 : 300000 }
     );
   });
 }

@@ -87,7 +87,7 @@ export function abrirDetalheDespesa(id) {
       linha('Situação', esc(d.status || '')) +
       linha('Observação', esc(d.observacao)) +
       linha('Lançada por', esc(d.lancadoPor || '')) +
-      (d.gps ? linha('GPS', '<a href="https://maps.apple.com/?ll=' + encodeURIComponent(d.gps.replace(/\s/g, '')) + '" target="_blank" rel="noopener">Ver no mapa</a>') : '') +
+      (d.gps ? linha('Local no mapa', '<button type="button" class="link-forte" data-acao="mapa">Ver no mapa da viagem</button>') : '') +
     '</div>' +
     obrigHtml +
     (d.comprovante
@@ -120,6 +120,11 @@ export function abrirDetalheDespesa(id) {
         const b = ev.target.closest('[data-acao]');
         if (!b) return;
         const acao = b.getAttribute('data-acao');
+
+        if (acao === 'mapa') {
+          fechar();
+          ir('/mapa/' + encodeURIComponent(d.id));
+        }
 
         if (acao === 'editar') {
           fechar();

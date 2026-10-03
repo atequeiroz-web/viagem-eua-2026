@@ -1007,3 +1007,30 @@ body::before {
 .sobre-diario { width: 100%; margin-top: 14px; }
 .linha-quebra strong { white-space: normal; text-align: right; overflow-wrap: anywhere; }
 .linha-quebra span { flex-shrink: 0; }
+
+/* 1.5.0: Mapa da viagem */
+.mapa-dias { margin-top: 4px; }
+.mapa-cartao { padding: 0; overflow: hidden; }
+.mapa { height: 58vh; min-height: 300px; background: #E8EEF6; }
+.mapa-vazio { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; text-align: center; color: var(--suave); }
+.mapa-vazio p { margin: 0; }
+.mapa-nota { margin: 8px 4px 0; }
+.pino-caixa { background: none; border: none; }
+.pino {
+  position: relative; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 50% 50% 50% 4px; transform: rotate(-45deg);
+  background: var(--cor); box-shadow: 0 3px 8px rgba(23, 35, 79, 0.35); border: 2px solid #FFFFFF;
+}
+.pino svg { transform: rotate(45deg); color: #FFFFFF !important; }
+.pino-num {
+  position: absolute; top: -8px; right: -8px; transform: rotate(45deg);
+  min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: #FFFFFF; color: var(--texto);
+  font-size: 10.5px; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.mapa-num {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--cor); color: #FFFFFF; font-size: 13px; font-weight: 800;
+}
+.leaflet-container { font-family: inherit; }
+.leaflet-control-attribution { font-size: 10px; }
+button.link-forte { border: none; background: none; padding: 0; font: inherit; color: var(--acento); font-weight: 800; }

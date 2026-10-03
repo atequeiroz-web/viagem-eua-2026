@@ -17,6 +17,7 @@ import { telaFila } from './telas/fila.js';
 import { telaFundos, telaFundo } from './telas/fundos.js';
 import { telaCadastros } from './telas/cadastros.js';
 import { telaSobre } from './telas/sobre.js';
+import { telaMapa } from './telas/mapa.js';
 import {
   telaRelatorios, telaRelExtrato, telaRelPessoa, telaRelCartao, telaRelDividas, telaRelMontar
 } from './telas/relatorio.js';
@@ -125,6 +126,8 @@ registrarRota('/fundos', protegida(telaFundos));
 registrarRota('/fundo/:id', protegida(telaFundo));
 registrarRota('/cadastros', protegida(telaCadastros));
 registrarRota('/sobre', protegida(telaSobre));
+registrarRota('/mapa', protegida(telaMapa));
+registrarRota('/mapa/:id', protegida(telaMapa));
 registrarRota('/relatorios', protegida(telaRelatorios));
 registrarRota('/relatorio/extrato', protegida(telaRelExtrato));
 registrarRota('/relatorio/pessoa', protegida(telaRelPessoa));

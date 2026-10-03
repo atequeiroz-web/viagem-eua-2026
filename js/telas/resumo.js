@@ -17,6 +17,7 @@ import {
   somaVazia, juntarSomas, ORDEM_MOEDAS, soReais
 } from '../calculos.js';
 import { htmlSomaGrande, htmlSomaCompacta, htmlSomaLinha, textoSoma } from '../valores.js';
+import { resumoDoMapa } from './mapa.js';
 
 let escopo = 'viagem';        // viagem | geral (tela "Para onde foi o dinheiro")
 let todasCategorias = false;
@@ -74,6 +75,7 @@ export const telaResumo = {
     }) +
     cartaoViagem(v, rViagem, viagem) +
     cardDias(v, rViagem, viagem) +
+    cardMapa(v) +
     cardTotal(v, rAntes, rViagem) +
     cardContas(v) +
     cardDinheiro(v, listaGeral) +
@@ -105,6 +107,16 @@ function cardDias(v, r, viagem) {
     ).join('') +
     '<p class="card-link-rodape">Somado até agora: <strong>' + htmlSomaLinha(linhas.length ? linhas[0].acumulado : somaVazia()) + '</strong></p>',
     'Dia a dia, gasto de cada dia e total somado', { tom: 'ceu', ic: 'calendario' });
+}
+
+function cardMapa(v) {
+  const m = resumoDoMapa(v);
+  return cardLink('/mapa', 'Mapa da viagem',
+    m.quantidade
+      ? '<div class="linha-curta"><span>' + m.quantidade + (m.quantidade === 1 ? ' lugar marcado' : ' lugares marcados') + '</span></div>' +
+        '<p class="card-link-rodape">Último: <strong>' + esc(m.ultimo.local || m.ultimo.descricao) + '</strong></p>'
+      : '<p class="card-link-texto">Cada despesa com local vira um marco no mapa, ligado na ordem do trajeto.</p>',
+    'Mapa da viagem', { tom: 'mar', ic: 'pin' });
 }
 
 function cardTotal(v, rAntes, rViagem) {

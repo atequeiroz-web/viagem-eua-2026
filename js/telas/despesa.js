@@ -536,7 +536,8 @@ export const telaDespesa = {
       f.gpsSituacao = 'buscando';
       $('#area-gps').innerHTML = htmlGps();
       const formulario = f;
-      const posicao = await obterLocalizacao();
+      // Pedido pelo toque: GPS de alta precisão, com mais tempo.
+      const posicao = await obterLocalizacao(pedidoPeloToque ? 15000 : 8000, pedidoPeloToque);
       if (f !== formulario || !$('#area-gps')) return;
       f.gps = posicao;
       f.gpsSituacao = posicao ? 'ok' : 'nao';
