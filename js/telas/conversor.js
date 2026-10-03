@@ -1,4 +1,5 @@
 // CONVERSOR: usa as cotações guardadas no aparelho (funciona sem sinal).
+// Abre sempre com o valor vazio e o cursor no campo, pronto para digitar.
 
 import { visao } from '../dados.js';
 import { cabecalho, abrirFolha, renderizar } from '../ui.js';
@@ -7,7 +8,7 @@ import { esc, moeda, numeroBR, lerNumero, dataCurta, tempoRelativo, simboloMoeda
 import { converter, cotacaoBRL } from '../calculos.js';
 
 const NOMES = { USD: 'Dólar americano', BRL: 'Real', PYG: 'Guarani paraguaio' };
-const c = { valorTexto: '100', de: 'USD', para: 'BRL' };
+const c = { valorTexto: '', de: 'USD', para: 'BRL' };
 
 function resultado(v) {
   const valor = lerNumero(c.valorTexto);
@@ -30,8 +31,21 @@ function botaoMoeda(lado) {
   return '<button type="button" class="moeda-botao" data-escolher="' + lado + '">' + esc(cod) + icone('baixo', 14, 2.4) + '</button>';
 }
 
+function focarNoFim(campo) {
+  try {
+    campo.focus({ preventScroll: true });
+    const fim = campo.value.length;
+    campo.setSelectionRange(fim, fim);
+  } catch (e) { /* alguns navegadores não deixam posicionar o cursor */ }
+}
+
 export const telaConversor = {
   aba: 'conversor',
+
+  // Ao sair da tela, o valor é esquecido: na próxima vez abre vazio.
+  sair() {
+    c.valorTexto = '';
+  },
 
   aoMudarDados() {
     if (document.activeElement && document.activeElement.id === 'conv-valor') return;
@@ -46,8 +60,9 @@ export const telaConversor = {
     return cabecalho({ titulo: 'Conversor', sobre: 'BANCO CENTRAL DO BRASIL' }) +
       '<section class="cartao conv">' +
         '<label class="rotulo" for="conv-valor">DE · ' + esc(NOMES[c.de]) + '</label>' +
-        '<div class="conv-linha">' + botaoMoeda('de') +
-          '<input id="conv-valor" type="text" inputmode="decimal" autocomplete="off" value="' + esc(c.valorTexto) + '" aria-label="Valor a converter"></div>' +
+        '<div class="conv-linha conv-linha-valor">' + botaoMoeda('de') +
+          '<input id="conv-valor" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' + esc(c.valorTexto) + '" aria-label="Valor a converter">' +
+          '<button type="button" class="conv-limpar" data-limpar aria-label="Apagar o valor"' + (c.valorTexto ? '' : ' hidden') + '>' + icone('fechar', 16, 2.6) + '</button></div>' +
         '<div class="conv-meio"><button type="button" class="conv-trocar" data-trocar aria-label="Inverter moedas">' + icone('trocar', 22, 2.2) + '</button></div>' +
         '<div class="rotulo">PARA · ' + esc(NOMES[c.para]) + '</div>' +
         '<div class="conv-linha">' + botaoMoeda('para') + '<output id="conv-resultado" class="conv-resultado">' + esc(resultado(v)) + '</output></div>' +
@@ -69,14 +84,35 @@ export const telaConversor = {
     const v = visao();
     const campo = raiz.querySelector('#conv-valor');
 
+    const limpar = raiz.querySelector('[data-limpar]');
+
     const atualizar = () => {
       raiz.querySelector('#conv-resultado').textContent = resultado(v);
+      limpar.hidden = !c.valorTexto;
       raiz.querySelectorAll('[data-atalho]').forEach(b => b.classList.toggle('ativo', Number(b.getAttribute('data-atalho')) === lerNumero(c.valorTexto)));
     };
 
     campo.addEventListener('input', () => { c.valorTexto = campo.value; atualizar(); });
 
+    // Cursor já no campo. No iPhone o teclado sobe junto quando se chega
+    // pela barra de baixo (ver focoTeclado em ui.js).
+    focarNoFim(campo);
+
     raiz.addEventListener('click', ev => {
+      if (ev.target.closest('[data-limpar]')) {
+        c.valorTexto = '';
+        campo.value = '';
+        atualizar();
+        focarNoFim(campo);
+        return;
+      }
+
+      // Tocar em qualquer ponto da linha do valor leva o cursor ao fim.
+      if (ev.target.closest('.conv-linha-valor') && !ev.target.closest('[data-escolher]') && ev.target !== campo) {
+        focarNoFim(campo);
+        return;
+      }
+
       const at = ev.target.closest('[data-atalho]');
       if (at) {
         c.valorTexto = at.getAttribute('data-atalho');

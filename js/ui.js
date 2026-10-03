@@ -114,6 +114,13 @@ export function renderizar(manterRolagem = false) {
     });
   });
 
+  // iPhone: o teclado só sobe se o foco acontecer durante o toque.
+  // Ao tocar num item marcado, um campo invisível recebe o foco na hora;
+  // a tela nova passa o foco para o campo dela e o teclado continua aberto.
+  app.querySelectorAll('[data-foco-teclado]').forEach(el => {
+    el.addEventListener('click', focoTeclado);
+  });
+
   app.querySelectorAll('[data-voltar]').forEach(el => {
     el.addEventListener('click', ev => {
       ev.preventDefault();
@@ -125,6 +132,20 @@ export function renderizar(manterRolagem = false) {
 
   if (manterRolagem && !mudouTela) window.scrollTo(0, rolagem);
   else if (mudouTela) window.scrollTo(0, 0);
+}
+
+function focoTeclado() {
+  let ponte = document.getElementById('foco-ponte');
+  if (!ponte) {
+    ponte = document.createElement('input');
+    ponte.id = 'foco-ponte';
+    ponte.type = 'text';
+    ponte.setAttribute('inputmode', 'decimal');
+    ponte.setAttribute('aria-hidden', 'true');
+    ponte.tabIndex = -1;
+    document.body.appendChild(ponte);
+  }
+  try { ponte.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
 }
 
 /* ---------------- Cabeçalho ---------------- */
@@ -178,8 +199,8 @@ export function atualizarPilula() {
 /* ---------------- Barra inferior ---------------- */
 
 function barraInferior(aba) {
-  const item = (rota, nome, ic, rotulo) =>
-    '<a href="#' + rota + '" class="nav-item' + (aba === nome ? ' ativo' : '') + '"' +
+  const item = (rota, nome, ic, rotulo, extra = '') =>
+    '<a href="#' + rota + '" class="nav-item' + (aba === nome ? ' ativo' : '') + '"' + extra +
     (aba === nome ? ' aria-current="page"' : '') + '>' + icone(ic, 23) + '<span>' + rotulo + '</span></a>';
 
   return '<nav class="nav" aria-label="Navegação principal">' +
@@ -187,7 +208,7 @@ function barraInferior(aba) {
     item('/historico', 'historico', 'historico', 'Histórico') +
     '<a href="#/nova" class="nav-item nav-nova" aria-label="Nova despesa"><span class="nav-fab">' + icone('mais', 28, 2.4) + '</span><span>Nova</span></a>' +
     item('/contas', 'contas', 'contas', 'Contas') +
-    item('/conversor', 'conversor', 'conversor', 'Conversor') +
+    item('/conversor', 'conversor', 'conversor', 'Conversor', ' data-foco-teclado') +
   '</nav>';
 }
 

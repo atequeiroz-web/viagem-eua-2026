@@ -11,6 +11,9 @@ const ROTULOS = {
   'despesa.excluir': 'Exclusão de despesa',
   'acerto.criar': 'Pagamento de dívida',
   'fundo.criar': 'Compra de moeda',
+  'pessoa.criar': 'Novo pagador',
+  'categoria.criar': 'Nova categoria',
+  'cartao.salvar': 'Cartão',
   'fundo.editar': 'Alteração de compra de moeda',
   'fundo.excluir': 'Exclusão de compra de moeda'
 };
@@ -19,6 +22,8 @@ function descreverOp(op) {
   const d = op.dados || {};
   if (op.tipo.startsWith('despesa') && op.tipo !== 'despesa.excluir') return (d.descricao || '') + ' · ' + moeda(d.valorOriginal, d.moeda);
   if (op.tipo === 'despesa.excluir') return 'Registro ' + d.id;
+  if (op.tipo === 'pessoa.criar' || op.tipo === 'categoria.criar') return d.nome;
+  if (op.tipo === 'cartao.salvar') return d.nome + ' (' + d.dono + ')';
   if (op.tipo === 'acerto.criar') return d.recursosDe + ' pagou ' + moeda(d.valorPago, d.moedaPagamento) + ' a ' + d.credor;
   if (op.tipo === 'fundo.excluir') return 'Registro ' + d.id;
   if (op.tipo.startsWith('fundo')) return moeda(d.quantidade, d.moeda) + (d.custoTotal ? ' por ' + moeda(d.custoTotal) : '');

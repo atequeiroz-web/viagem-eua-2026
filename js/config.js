@@ -1,7 +1,7 @@
 // Configuração do app. Ao publicar uma versão nova, aumente
 // VERSAO aqui e também em sw.js (as duas precisam ser iguais).
 
-export const VERSAO = '1.0.0';
+export const VERSAO = '1.4.0';
 
 // Endereço da ponte (Apps Script publicado como App da Web).
 export const API_URL =

@@ -33,13 +33,38 @@ function notificar() {
   });
 }
 
-export async function iniciar() {
-  estado.usuario = (await db.kvLer('usuario')) || null;
-  estado.chave = (await db.kvLer('chave')) || null;
-  estado.snapshot = (await db.kvLer('snapshot')) || null;
-  estado.ultimaSync = (await db.kvLer('ultimaSync')) || null;
-  estado.fila = await db.filaListar();
-  estado.preferencias = (await db.kvLer('preferencias')) || {};
+export async function iniciar(versao = '') {
+  let bancoOk = true;
+  try {
+    estado.usuario = (await db.kvLer('usuario')) || null;
+    estado.chave = (await db.kvLer('chave')) || null;
+    estado.snapshot = (await db.kvLer('snapshot')) || null;
+    estado.ultimaSync = (await db.kvLer('ultimaSync')) || null;
+    estado.fila = (await db.filaListar()) || [];
+    estado.preferencias = (await db.kvLer('preferencias')) || {};
+  } catch (erro) {
+    bancoOk = false;
+    db.registrarDiario('abriu ' + versao + ': banco indisponível (' + (erro && (erro.name || erro.message)) + ')');
+  }
+
+  // Sem usuário/chave no banco? Usa a cópia de segurança, se houver.
+  const backup = db.backupLer();
+  if ((!estado.usuario || !estado.chave) && backup) {
+    estado.usuario = backup.usuario;
+    estado.chave = backup.chave;
+    db.registrarDiario('abriu ' + versao + ': acesso restaurado da cópia de segurança' + (estado.snapshot ? '' : ' (planilha será baixada de novo)'));
+    if (bancoOk) {
+      try {
+        await db.kvGravar('usuario', estado.usuario);
+        await db.kvGravar('chave', estado.chave);
+      } catch (e) { /* tenta de novo na próxima abertura */ }
+    }
+  } else if (estado.usuario && estado.chave) {
+    if (!backup) db.backupGravar(estado.usuario, estado.chave);
+    db.registrarDiario('abriu ' + versao + ': ok' + (estado.snapshot ? '' : ' (sem cópia da planilha)') + (estado.fila.length ? ', ' + estado.fila.length + ' na fila' : ''));
+  } else {
+    db.registrarDiario('abriu ' + versao + ': sem acesso guardado (pede a chave)');
+  }
 
   window.addEventListener('online', () => {
     estado.online = true;
@@ -59,8 +84,10 @@ export async function lembrarEscolhas(escolhas) {
   await db.kvGravar('preferencias', estado.preferencias);
 }
 
+/** Aparelho configurado = sabe quem usa e tem a chave. A cópia da planilha
+ *  pode faltar (o iPhone pode ter apagado): nesse caso ela é baixada de novo. */
 export function configurado() {
-  return Boolean(estado.usuario && estado.chave && estado.snapshot);
+  return Boolean(estado.usuario && estado.chave);
 }
 
 /* =========================================================
@@ -87,6 +114,8 @@ export async function configurar(usuario, chave) {
 
   await db.kvGravar('usuario', pessoa.nome);
   await db.kvGravar('chave', chave);
+  db.backupGravar(pessoa.nome, chave);
+  db.registrarDiario('configurado para ' + pessoa.nome);
   await guardarSnapshot(r.snapshot);
   await db.pedirArmazenamentoPersistente();
 
@@ -107,6 +136,7 @@ export async function trocarChave(chave) {
   }
 
   await db.kvGravar('chave', chave);
+  db.backupGravar(estado.usuario, chave);
   estado.chave = chave;
   estado.chaveInvalida = false;
   estado.ultimoErro = null;
@@ -117,6 +147,7 @@ export async function trocarChave(chave) {
 }
 
 export async function desconectar() {
+  db.registrarDiario('desconectado pelo botão "Desconectar este iPhone"');
   await db.apagarTudo();
   estado.usuario = null;
   estado.chave = null;
@@ -406,12 +437,33 @@ export function visao() {
     ...s,
     despesas: (s.despesas || []).map(x => ({ ...x })),
     acertos: (s.acertos || []).map(x => ({ ...x })),
-    fundos: (s.fundos || []).map(x => ({ ...x }))
+    fundos: (s.fundos || []).map(x => ({ ...x })),
+    pessoas: (s.pessoas || []).map(x => ({ ...x })),
+    categorias: (s.categorias || []).slice(),
+    config: { ...VAZIO.config, ...(s.config || {}), cartoes: ((s.config && s.config.cartoes) || []).slice() }
   };
 
   for (const op of estado.fila) {
     const d = op.dados || {};
     const marca = { _fila: op.estado, _opId: op.opId, _motivo: op.motivo, _tipoOp: op.tipo };
+
+    // Cadastros ainda na fila já aparecem nas telas.
+    if (op.tipo === 'pessoa.criar' && op.estado !== 'recusada' && d.nome &&
+        !v.pessoas.some(x => mesmaPessoa(x.nome, d.nome))) {
+      v.pessoas.push({ nome: d.nome, tipo: 'Terceiro', geraAcerto: true, ativo: true, ...marca });
+    }
+
+    if (op.tipo === 'categoria.criar' && op.estado !== 'recusada' && d.nome &&
+        !v.categorias.some(c => mesmaPessoa(c, d.nome))) {
+      v.categorias.push(d.nome);
+    }
+
+    if (op.tipo === 'cartao.salvar' && op.estado !== 'recusada' && d.nome) {
+      const semDono = t => String(t).replace(/\s*\([^()]*\)\s*$/, '').trim();
+      const i = v.config.cartoes.findIndex(c => mesmaPessoa(semDono(c), d.nome));
+      if (i >= 0) v.config.cartoes[i] = semDono(v.config.cartoes[i]) + ' (' + d.dono + ')';
+      else v.config.cartoes.push(d.nome + ' (' + d.dono + ')');
+    }
 
     if (op.tipo === 'despesa.criar') {
       if (!v.despesas.some(x => x.id === d.id)) {

@@ -19,16 +19,22 @@ function abrir() {
         if (!db.objectStoreNames.contains('fotos')) db.createObjectStore('fotos');
       };
 
-      pedido.onsuccess = () => resolver(pedido.result);
-      pedido.onerror = () => rejeitar(pedido.error);
+      pedido.onsuccess = () => {
+        const db = pedido.result;
+        // O iPhone às vezes derruba a ligação com o banco quando o app
+        // fica em segundo plano. Se cair, a próxima leitura reabre.
+        db.onclose = () => { promessa = null; };
+        db.onversionchange = () => { db.close(); promessa = null; };
+        resolver(db);
+      };
+      pedido.onerror = () => { promessa = null; rejeitar(pedido.error); };
+      pedido.onblocked = () => { promessa = null; rejeitar(new Error('Armazenamento ocupado.')); };
     });
   }
   return promessa;
 }
 
-async function executar(loja, modo, acao) {
-  const db = await abrir();
-
+function transacao(db, loja, modo, acao) {
   return new Promise((resolver, rejeitar) => {
     const t = db.transaction(loja, modo);
     const pedido = acao(t.objectStore(loja));
@@ -40,6 +46,56 @@ async function executar(loja, modo, acao) {
     t.onerror = () => rejeitar(t.error);
     t.onabort = () => rejeitar(t.error || new Error('Gravação cancelada.'));
   });
+}
+
+/** Executa no banco; se a ligação tiver caído, reabre e tenta mais uma vez. */
+async function executar(loja, modo, acao) {
+  try {
+    return await transacao(await abrir(), loja, modo, acao);
+  } catch (erro) {
+    registrarDiario('banco: ' + (erro && (erro.name || erro.message) || 'falha') + ' — reabrindo');
+    promessa = null;
+    await new Promise(r => setTimeout(r, 150));
+    return transacao(await abrir(), loja, modo, acao);
+  }
+}
+
+/* ---------------- Cópia de segurança do acesso e diário ----------------
+   Usuário e chave também ficam numa segunda gaveta do aparelho
+   (localStorage). Se o iPhone abrir o app sem achar o banco, o acesso
+   é restaurado daqui e a planilha é baixada de novo, sem pedir a chave.
+   O diário guarda as últimas aberturas e falhas, para diagnóstico. */
+
+const CHAVE_BACKUP = 'viagem-eua-2026:acesso';
+const CHAVE_DIARIO = 'viagem-eua-2026:diario';
+
+export function backupGravar(usuario, chave) {
+  try { localStorage.setItem(CHAVE_BACKUP, JSON.stringify({ usuario, chave })); } catch (e) { /* sem espaço */ }
+}
+
+export function backupLer() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CHAVE_BACKUP) || 'null');
+    return d && d.usuario && d.chave ? d : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function backupApagar() {
+  try { localStorage.removeItem(CHAVE_BACKUP); } catch (e) { /* nada */ }
+}
+
+export function registrarDiario(texto) {
+  try {
+    const lista = JSON.parse(localStorage.getItem(CHAVE_DIARIO) || '[]');
+    lista.push({ quando: new Date().toISOString(), texto: String(texto).slice(0, 200) });
+    localStorage.setItem(CHAVE_DIARIO, JSON.stringify(lista.slice(-40)));
+  } catch (e) { /* nada */ }
+}
+
+export function lerDiario() {
+  try { return JSON.parse(localStorage.getItem(CHAVE_DIARIO) || '[]'); } catch (e) { return []; }
 }
 
 export const kvLer = chave => executar('kv', 'readonly', s => s.get(chave));
@@ -58,6 +114,7 @@ export const fotoLer = chave => executar('fotos', 'readonly', s => s.get(chave))
 export const fotoGravar = (chave, dados) => executar('fotos', 'readwrite', s => s.put(dados, chave));
 
 export async function apagarTudo() {
+  backupApagar();
   const db = await abrir();
   db.close();
   promessa = null;

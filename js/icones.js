@@ -73,13 +73,45 @@ const POR_CATEGORIA = {
   'outros': 'etiqueta'
 };
 
-export function iconeCategoria(categoria, tamanho = 22) {
-  const chave = String(categoria ?? '')
+/**
+ * Cor de cada categoria, como etiqueta de bagagem: o ícone sai na cor
+ * e o quadradinho em volta ganha um fundo claro da mesma cor (app.css).
+ */
+const COR_CATEGORIA = {
+  'passagens aereas': ['ceu', '#1D5FD1'],
+  'alimentacao': ['tomate', '#D9480F'],
+  'mercado': ['folha', '#2B8A3E'],
+  'transporte': ['mar', '#0C8599'],
+  'passeios e ingressos': ['violeta', '#7048E8'],
+  'compras pessoais': ['framboesa', '#C2255C'],
+  'presentes e lembrancas': ['rosa', '#D6336C'],
+  'farmacia / saude': ['vermelho', '#E03131'],
+  'telefonia / internet': ['anil', '#3B5BDB'],
+  'seguro viagem': ['azul', '#1971C2'],
+  'bagagem / servicos aereos': ['couro', '#A0522D'],
+  'taxas e tarifas': ['ardosia', '#5C677D'],
+  'hospedagem': ['ameixa', '#9C36B5'],
+  'imprevistos': ['ambar', '#E67700'],
+  'outros': ['ardosia', '#5C677D']
+};
+
+function chaveCategoria(categoria) {
+  return String(categoria ?? '')
     .trim()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
-  return icone(POR_CATEGORIA[chave] || 'etiqueta', tamanho);
+}
+
+/** Cor (hex) da categoria; cinza-ardósia para as desconhecidas. */
+export function corCategoria(categoria) {
+  return (COR_CATEGORIA[chaveCategoria(categoria)] || COR_CATEGORIA.outros)[1];
+}
+
+export function iconeCategoria(categoria, tamanho = 22) {
+  const chave = chaveCategoria(categoria);
+  const [nomeCor, hex] = COR_CATEGORIA[chave] || COR_CATEGORIA.outros;
+  return icone(POR_CATEGORIA[chave] || 'etiqueta', tamanho, 1.9, ' data-cor="' + nomeCor + '" style="color:' + hex + '"');
 }
 
 /** Nome curto para os botões de categoria. */

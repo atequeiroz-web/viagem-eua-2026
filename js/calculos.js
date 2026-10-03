@@ -28,6 +28,70 @@ export function valorBRL(d, cotacoes) {
   return estimarBRL(d.valorOriginal, d.moeda, cotacoes);
 }
 
+/**
+ * Referência em reais de uma despesa, CONGELADA no dia da compra.
+ * É só informativa: o gasto vale na moeda original.
+ *  - BRL: o próprio valor.
+ *  - Já calculada pela planilha: "Valor BRL estimado" (cotação do
+ *    dia da compra; no dinheiro em espécie, o custo médio dele).
+ *  - Ainda na fila ou sem cotação na planilha: estimativa com a
+ *    cotação guardada no aparelho (marcada como estimada).
+ */
+export function refBRL(d, cotacoes) {
+  const original = num(d.valorOriginal);
+  if (d.moeda === 'BRL') return { valor: arred2(original), estimada: false };
+
+  if (!d._fila) {
+    const estimado = num(d.valorEstimado);
+    if (estimado > 0) return { valor: arred2(estimado), estimada: false };
+    const cot = num(d.cotacao);
+    if (cot > 0) return { valor: arred2(original * cot), estimada: false };
+  }
+
+  return { valor: estimarBRL(original, d.moeda, cotacoes), estimada: true };
+}
+
+/* ---------------- Somas por moeda ---------------- */
+
+export const ORDEM_MOEDAS = ['USD', 'BRL', 'PYG'];
+
+/** Uma soma separada por moeda + a soma das referências em reais. */
+export function somaVazia() {
+  return { USD: 0, BRL: 0, PYG: 0, ref: 0, refEstimada: 0, quantidade: 0 };
+}
+
+export function somarDespesa(s, d, cotacoes, fator = 1) {
+  const r = refBRL(d, cotacoes);
+  const moeda = ORDEM_MOEDAS.includes(d.moeda) ? d.moeda : 'BRL';
+  s[moeda] = arred2(s[moeda] + num(d.valorOriginal) * fator);
+  s.ref = arred2(s.ref + r.valor * fator);
+  if (r.estimada) s.refEstimada = arred2(s.refEstimada + r.valor * fator);
+  s.quantidade += 1;
+  return s;
+}
+
+export function juntarSomas(...somas) {
+  const t = somaVazia();
+  for (const s of somas) {
+    for (const k of ORDEM_MOEDAS) t[k] = arred2(t[k] + s[k]);
+    t.ref = arred2(t.ref + s.ref);
+    t.refEstimada = arred2(t.refEstimada + s.refEstimada);
+    t.quantidade += s.quantidade;
+  }
+  return t;
+}
+
+/** Moedas com valor, na ordem US$, R$, ₲. */
+export function moedasUsadas(s) {
+  return ORDEM_MOEDAS.filter(k => Math.abs(s[k]) > 0.004);
+}
+
+/** Só reais? Então a referência é o próprio valor e não precisa aparecer. */
+export function soReais(s) {
+  const usadas = moedasUsadas(s);
+  return usadas.length === 0 || (usadas.length === 1 && usadas[0] === 'BRL');
+}
+
 export function converter(valor, de, para, cotacoes) {
   const a = cotacaoBRL(de, cotacoes);
   const b = cotacaoBRL(para, cotacoes);
@@ -97,42 +161,91 @@ export function despesasValidas(v) {
 }
 
 export function resumo(v) {
-  const cot = v.cotacoes;
-  const lista = despesasValidas(v);
+  return resumoDe(despesasValidas(v), v.cotacoes);
+}
 
-  const r = {
-    total: 0,
-    quantidade: lista.length,
-    porMoeda: { BRL: 0, USD: 0, PYG: 0 },
-    porResponsavel: new Map(),
-    porPagador: new Map(),
-    porCategoria: new Map(),
-    porDia: new Map(),
-    estimado: 0
+/** Separa as despesas em "antes da viagem" e "a partir do 1º dia". */
+export function dividirPorFase(v) {
+  const inicio = v.config && v.config.viagemInicio;
+  const lista = despesasValidas(v);
+  if (!inicio) return { antes: [], viagem: lista };
+  return {
+    antes: lista.filter(d => dia(d.dataCompra) < inicio),
+    viagem: lista.filter(d => dia(d.dataCompra) >= inicio)
+  };
+}
+
+/**
+ * Parte de cada um: o que é dele mais metade do compartilhado
+ * (mesma regra do motor: metade João, restante Norma).
+ */
+export function partePorPessoa(lista, cotacoes) {
+  const partes = new Map();
+  const de = nome => {
+    if (!partes.has(nome)) partes.set(nome, somaVazia());
+    return partes.get(nome);
   };
 
   for (const d of lista) {
-    const brl = valorBRL(d, cot);
-    r.total = arred2(r.total + brl);
+    if (normalizar(d.responsavel) === 'compartilhada') {
+      // Mesma regra do motor, moeda por moeda: metade arredondada para
+      // o João, o restante para a Norma (a soma fecha sem sobra).
+      const r = refBRL(d, cotacoes);
+      const v = num(d.valorOriginal);
+      const moeda = ORDEM_MOEDAS.includes(d.moeda) ? d.moeda : 'BRL';
+      const vJoao = arred2(v / 2);
+      const refJoao = arred2(r.valor / 2);
+      [['João', vJoao, refJoao], ['Norma', arred2(v - vJoao), arred2(r.valor - refJoao)]].forEach(([nome, valor, ref]) => {
+        const s = de(nome);
+        s[moeda] = arred2(s[moeda] + valor);
+        s.ref = arred2(s.ref + ref);
+        if (r.estimada) s.refEstimada = arred2(s.refEstimada + ref);
+        s.quantidade += 1;
+      });
+    } else {
+      somarDespesa(de(d.responsavel || '—'), d, cotacoes);
+    }
+  }
 
-    if (d._fila || !(num(d.valorEfetivo) > 0)) r.estimado = arred2(r.estimado + brl);
-    if (r.porMoeda[d.moeda] !== undefined) r.porMoeda[d.moeda] = arred2(r.porMoeda[d.moeda] + num(d.valorOriginal));
+  return partes;
+}
 
-    somar(r.porResponsavel, d.responsavel || '—', brl);
-    somar(r.porPagador, d.quemPagou || '—', brl);
-    somar(r.porCategoria, d.categoria || 'Outros', brl);
-    somar(r.porDia, dia(d.dataCompra), brl);
+/**
+ * Resumo de uma lista de despesas. Nada é convertido: cada moeda é
+ * somada separadamente; "ref" soma as referências em reais congeladas.
+ */
+export function resumoDe(lista, cot) {
+  const r = {
+    tot: somaVazia(),
+    refPorMoeda: { USD: 0, BRL: 0, PYG: 0 },
+    quantidade: lista.length,
+    porResponsavel: new Map(),
+    porPagador: new Map(),
+    porCategoria: new Map(),
+    porDia: new Map()
+  };
+
+  for (const d of lista) {
+    somarDespesa(r.tot, d, cot);
+    const m = ORDEM_MOEDAS.includes(d.moeda) ? d.moeda : 'BRL';
+    r.refPorMoeda[m] = arred2(r.refPorMoeda[m] + refBRL(d, cot).valor);
+    somarNoMapa(r.porResponsavel, d.responsavel || '—', d, cot);
+    somarNoMapa(r.porPagador, d.quemPagou || '—', d, cot);
+    somarNoMapa(r.porCategoria, d.categoria || 'Outros', d, cot);
+    somarNoMapa(r.porDia, dia(d.dataCompra), d, cot);
   }
 
   return r;
 }
 
-function somar(mapa, chave, valor) {
-  mapa.set(chave, arred2((mapa.get(chave) || 0) + valor));
+function somarNoMapa(mapa, chave, d, cot) {
+  if (!mapa.has(chave)) mapa.set(chave, somaVazia());
+  somarDespesa(mapa.get(chave), d, cot);
 }
 
+/** Ordena um mapa de somas pela referência em reais (maior primeiro). */
 export function ordenarMapa(mapa) {
-  return Array.from(mapa.entries()).sort((a, b) => b[1] - a[1]);
+  return Array.from(mapa.entries()).sort((a, b) => b[1].ref - a[1].ref);
 }
 
 /* ---------------- Registros ---------------- */
@@ -168,6 +281,36 @@ export function obrigacoesDaDespesa(v, id) {
 export function despesaComAcerto(v, id) {
   const ids = new Set((v.aplicacoes || []).map(a => a.obrigacaoId));
   return obrigacoesDaDespesa(v, id).some(o => ids.has(o.id));
+}
+
+/* ---------------- Cartões e pagadores ---------------- */
+
+/** "Nubank (Norma)" → { nome: 'Nubank', dono: 'Norma' }. Sem parênteses, sem dono. */
+export function separarCartao(texto) {
+  const t = String(texto || '').trim();
+  const m = t.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+  return m ? { nome: m[1].trim(), dono: m[2].trim() } : { nome: t, dono: '' };
+}
+
+export function listaCartoes(v) {
+  return ((v.config && v.config.cartoes) || []).map(separarCartao).filter(c => c.nome);
+}
+
+/** Cartões que aparecem para quem pagou: os dele e os ainda sem dono. */
+export function cartoesDe(v, pessoa) {
+  return listaCartoes(v).filter(c => !c.dono || mesmaPessoa(c.dono, pessoa)).map(c => c.nome);
+}
+
+/** Terceiro (Nice, Ana, outro): paga sempre em dinheiro e em dólar, e gera dívida. */
+export function ehTerceiro(v, nome) {
+  const p = (v.pessoas || []).find(x => mesmaPessoa(x.nome, nome));
+  return Boolean(p && p.geraAcerto);
+}
+
+/** A ponte instalada já sabe cadastrar (1.1.0 ou mais nova)? */
+export function ponteCadastra(v) {
+  const [a, b] = String(v.versaoApi || '0.0').split('.').map(Number);
+  return a > 1 || (a === 1 && b >= 1);
 }
 
 export function pessoaPropria(v, nome) {
@@ -212,6 +355,66 @@ export function origemDaObrigacao(v, o) {
   }
 
   return { titulo: o.observacao || o.tipoOrigem, categoria: '', data: o.dataOrigem };
+}
+
+/* ---------------- Pagamento ligado às dívidas ---------------- */
+
+/**
+ * Tudo o que o motor fez com um pagamento: a conversão para a moeda
+ * da dívida e, pela ordem FIFO, cada dívida abatida.
+ */
+export function efeitoDoPagamento(v, a) {
+  const aplic = (v.aplicacoes || [])
+    .filter(x => x.acertoId === a.id)
+    .map(x => {
+      const ob = (v.obrigacoes || []).find(o => o.id === x.obrigacaoId) || null;
+      return {
+        ap: x,
+        ob,
+        origem: ob ? origemDaObrigacao(v, ob) : { titulo: 'Dívida ' + x.obrigacaoId, categoria: '', data: x.data },
+        quitou: num(x.saldoPosterior) <= 0.004
+      };
+    })
+    .sort((x, y) => String(x.origem.data).localeCompare(String(y.origem.data)));
+
+  const moedaDivida = a.moedaObrigacao || (aplic[0] && aplic[0].ap.moeda) || '';
+  const liquidado = num(a.valorLiquidado);
+  const aplicado = arred2(aplic.reduce((s, x) => s + num(x.ap.valorAplicado), 0));
+  const sobra = liquidado > 0 ? Math.max(0, arred2(liquidado - aplicado)) : 0;
+
+  // Obrigações novas que o motor criou por causa deste pagamento.
+  const geradas = (v.obrigacoes || []).filter(o => String(o.origemId || '').split(':')[0] === a.id);
+  const internas = geradas.filter(o => normalizar(o.tipoOrigem) === 'pagamento por conta');
+  const credito = geradas.filter(o => normalizar(o.tipoOrigem) === 'excesso de acerto');
+
+  // Saldo de hoje das dívidas que este pagamento atingiu.
+  const devedores = a.porConta === 'Ambos' || !a.porConta ? ['João', 'Norma'] : [a.porConta];
+  const grupos = (v.saldosConta || []).filter(g =>
+    mesmaPessoa(g.credor, a.credor) && g.moeda === moedaDivida && devedores.some(dv => mesmaPessoa(dv, g.devedor)));
+  const saldoHoje = arred2(grupos.reduce((s, g) => s + num(g.saldo), 0));
+
+  const convertido = a.moedaPagamento && moedaDivida && a.moedaPagamento !== moedaDivida;
+
+  return {
+    moedaDivida,
+    liquidado,
+    convertido,
+    cotacao: num(a.cotacao),
+    aplic,
+    aplicado,
+    sobra,
+    internas,
+    credito,
+    saldoHoje,
+    temGrupo: grupos.length > 0
+  };
+}
+
+/** Pagamentos que abateram uma obrigação (para a ligação no outro sentido). */
+export function pagamentosDaObrigacao(v, obrigacaoId) {
+  return (v.aplicacoes || [])
+    .filter(x => x.obrigacaoId === obrigacaoId)
+    .map(x => ({ ap: x, acerto: (v.acertos || []).find(a => a.id === x.acertoId) || null }));
 }
 
 /** Totais do ponto de vista de quem usa o aparelho. */

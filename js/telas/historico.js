@@ -3,8 +3,9 @@
 import { visao } from '../dados.js';
 import { cabecalho, abrirFolha, vazio } from '../ui.js';
 import { icone, iconeCategoria } from '../icones.js';
-import { esc, moeda, normalizar, dia, hojeDia, diaSemana, hora, arred2 } from '../util.js';
-import { valorBRL, infoViagem } from '../calculos.js';
+import { esc, moeda, normalizar, dia, hojeDia, diaSemana, hora } from '../util.js';
+import { refBRL, infoViagem, somaVazia, somarDespesa, soReais } from '../calculos.js';
+import { textoSoma } from '../valores.js';
 import { abrirDetalheDespesa } from './detalhe.js';
 
 const filtro = {
@@ -83,7 +84,7 @@ function rotuloDia(diaISO, inicio) {
 
 function htmlLista(v) {
   const lista = aplicarFiltros(v);
-  const total = arred2(lista.reduce((s, d) => s + valorBRL(d, v.cotacoes), 0));
+  const total = lista.reduce((s, d) => somarDespesa(s, d, v.cotacoes), somaVazia());
 
   if (!lista.length) {
     return '<p class="resumo-filtro">Nenhuma despesa encontrada</p>' +
@@ -97,12 +98,13 @@ function htmlLista(v) {
     grupos.get(chave).push(d);
   }
 
-  let html = '<p class="resumo-filtro">' + lista.length + (lista.length === 1 ? ' despesa' : ' despesas') + ' · ' + esc(moeda(total)) + '</p>';
+  let html = '<p class="resumo-filtro">' + lista.length + (lista.length === 1 ? ' despesa' : ' despesas') + ' · ' + esc(textoSoma(total)) +
+    (!soReais(total) ? ' <span class="suave">(≈ ' + esc(moeda(total.ref)) + ')</span>' : '') + '</p>';
 
   for (const [chave, itens] of grupos) {
-    const soma = arred2(itens.reduce((s, d) => s + valorBRL(d, v.cotacoes), 0));
+    const soma = itens.reduce((s, d) => somarDespesa(s, d, v.cotacoes), somaVazia());
     html += '<section class="grupo-dia">' +
-      '<div class="grupo-topo"><h2>' + esc(rotuloDia(chave, v.config.viagemInicio)) + '</h2><span>' + esc(moeda(soma)) + '</span></div>' +
+      '<div class="grupo-topo"><h2>' + esc(rotuloDia(chave, v.config.viagemInicio)) + '</h2><span>' + esc(textoSoma(soma)) + '</span></div>' +
       '<ul class="lista">' +
       itens.map(d => {
         const terceiro = (v.pessoas || []).find(p => normalizar(p.nome) === normalizar(d.quemPagou) && p.geraAcerto);
@@ -116,7 +118,7 @@ function htmlLista(v) {
           '</span>' +
           '<span class="item-dir">' +
             '<span class="item-valor">' + esc(moeda(d.valorOriginal, d.moeda)) + '</span>' +
-            (d.moeda !== 'BRL' ? '<span class="item-sub">' + esc(moeda(valorBRL(d, v.cotacoes))) + '</span>' : '') +
+            (d.moeda !== 'BRL' ? '<span class="item-sub">≈ ' + esc(moeda(refBRL(d, v.cotacoes).valor)) + '</span>' : '') +
           '</span>' +
         '</button></li>';
       }).join('') +

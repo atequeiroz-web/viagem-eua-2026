@@ -4,7 +4,8 @@ import { visao, enfileirar, lerFoto, fotoDaFila } from '../dados.js';
 import { abrirFolha, confirmar, avisar, ir } from '../ui.js';
 import { icone, iconeCategoria } from '../icones.js';
 import { esc, moeda, num, dataCurta, hora, cotacaoBR, lerNumero, arred2, normalizar } from '../util.js';
-import { valorBRL, dadosParaEdicao, obrigacoesDaDespesa, despesaComAcerto, pessoaPropria, PROTEGIDOS } from '../calculos.js';
+import { refBRL, pagamentosDaObrigacao, dadosParaEdicao, obrigacoesDaDespesa, despesaComAcerto, pessoaPropria, PROTEGIDOS } from '../calculos.js';
+import { abrirPagamento } from './pagamento.js';
 
 function linha(rotulo, valor) {
   if (valor === '' || valor === null || valor === undefined) return '';
@@ -16,7 +17,7 @@ export function abrirDetalheDespesa(id) {
   const d = v.despesas.find(x => x.id === id);
   if (!d) return;
 
-  const brl = valorBRL(d, v.cotacoes);
+  const ref = refBRL(d, v.cotacoes);
   const efetivo = num(d.valorEfetivo) > 0;
   const protegido = PROTEGIDOS.includes(d.id);
   const comAcerto = despesaComAcerto(v, d.id);
@@ -51,7 +52,12 @@ export function abrirDetalheDespesa(id) {
         '<div class="det-obrig"><span>' + esc(o.devedor) + ' deve a ' + esc(o.credor) + '</span>' +
         '<span class="det-obrig-dir"><strong>' + esc(moeda(o.valorOriginal, o.moeda)) + '</strong>' +
         '<span class="selo ' + (o.status === 'Liquidada' ? 'selo-ok' : o.status === 'Parcial' ? 'selo-alerta' : 'selo-neutro') + '">' +
-        esc(o.status === 'Parcial' ? 'Falta ' + moeda(o.saldo, o.moeda) : o.status) + '</span></span></div>'
+        esc(o.status === 'Parcial' ? 'Falta ' + moeda(o.saldo, o.moeda) : o.status) + '</span></span></div>' +
+        pagamentosDaObrigacao(v, o.id).map(({ ap, acerto }) => acerto
+          ? '<button type="button" class="det-pag" data-pagamento="' + esc(acerto.id) + '">' + icone('maos', 16, 2) +
+            '<span>' + esc(dataCurta(acerto.data)) + ': ' + esc(acerto.recursosDe) + ' pagou <span class="nw">' + esc(moeda(acerto.valorPago, acerto.moedaPagamento)) + '</span>' +
+            ' → abateu <span class="nw">' + esc(moeda(ap.valorAplicado, ap.moeda)) + '</span></span>' + icone('direita', 16, 2.2) + '</button>'
+          : '').join('')
       ).join('') + '</div>'
     : '';
 
@@ -64,7 +70,8 @@ export function abrirDetalheDespesa(id) {
     '<div class="det-valores">' +
       '<div><div class="rotulo">VALOR</div><div class="det-grande">' + esc(moeda(d.valorOriginal, d.moeda)) + '</div></div>' +
       (d.moeda !== 'BRL'
-        ? '<div><div class="rotulo">' + (efetivo ? 'EM REAIS (DEFINITIVO)' : 'EM REAIS (ESTIMADO)') + '</div><div class="det-grande det-grande-suave">' + esc(moeda(brl)) + '</div></div>'
+        ? '<div><div class="rotulo">REFERÊNCIA EM REAIS</div><div class="det-grande det-grande-suave">' + esc(moeda(ref.valor)) + '</div>' +
+          '<div class="det-nota">' + (ref.estimada ? 'estimada no aparelho' : 'cotação do dia, congelada') + '</div></div>'
         : '') +
     '</div>' +
     '<div class="det-lista">' +
@@ -76,6 +83,7 @@ export function abrirDetalheDespesa(id) {
       linha('De quem é', esc(d.responsavel)) +
       linha('Pagamento', esc([d.formaPagamento, d.cartao].filter(Boolean).join(' · '))) +
       linha('Câmbio', cambio) +
+      (efetivo && d.moeda !== 'BRL' ? linha('Valor na fatura', esc(moeda(d.valorEfetivo))) : '') +
       linha('Situação', esc(d.status || '')) +
       linha('Observação', esc(d.observacao)) +
       linha('Lançada por', esc(d.lancadoPor || '')) +
@@ -103,6 +111,12 @@ export function abrirDetalheDespesa(id) {
       if (d.comprovante) carregarFoto(corpo, d.comprovante);
 
       corpo.addEventListener('click', async ev => {
+        const pag = ev.target.closest('[data-pagamento]');
+        if (pag) {
+          fechar();
+          abrirPagamento(pag.getAttribute('data-pagamento'));
+          return;
+        }
         const b = ev.target.closest('[data-acao]');
         if (!b) return;
         const acao = b.getAttribute('data-acao');
@@ -135,7 +149,7 @@ export function abrirDetalheDespesa(id) {
   });
 }
 
-async function carregarFoto(corpo, comprovante) {
+export async function carregarFoto(corpo, comprovante) {
   const alvo = corpo.querySelector('#det-foto');
   if (!alvo) return;
 

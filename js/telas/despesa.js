@@ -5,12 +5,13 @@ import { cabecalho, segmento, ligarSegmento, abrirFolha, confirmar, avisar, ir }
 import { icone, iconeCategoria, rotuloCurtoCategoria } from '../icones.js';
 import {
   esc, moeda, simboloMoeda, num, arred2, lerNumero, normalizar, dia,
-  paraCampoDataHora, gerarId, comprimirFoto, obterLocalizacao, numeroBR
+  paraCampoDataHora, gerarId, comprimirFoto, obterLocalizacao, numeroBR, ultimoErroLocalizacao
 } from '../util.js';
 import {
   estimarBRL, cotacaoBRL, previaObrigacoes, momentoEtapa, MOMENTOS, ETAPAS,
-  dadosParaEdicao, despesaComAcerto, pessoaPropria, PROTEGIDOS
+  dadosParaEdicao, despesaComAcerto, pessoaPropria, PROTEGIDOS, cartoesDe, ehTerceiro
 } from '../calculos.js';
+import { abrirNovoPagador, abrirNovaCategoria, abrirNovoCartao } from './cadastros.js';
 
 let f = null;          // estado do formulário
 let modo = 'nova';     // nova | editar | corrigir
@@ -24,7 +25,7 @@ let travado = false;   // campos financeiros bloqueados
 function novoFormulario(v) {
   const pref = estado.preferencias || {};
   const formas = v.config.formasPagamento || [];
-  const cartoes = v.config.cartoes || [];
+  const cartoes = cartoesDe(v, estado.usuario);
   const agora = paraCampoDataHora(new Date());
   const me = momentoEtapa(agora.slice(0, 10), v.config);
 
@@ -109,7 +110,39 @@ function prepararFormulario(params) {
 
   modo = 'nova';
   f = novoFormulario(v);
+  aplicarRegrasPagador(v);
   return f;
+}
+
+/* ---------------- Regras de quem pagou ---------------- */
+
+function formaDinheiro(v) {
+  return (v.config.formasPagamento || []).find(x => normalizar(x).includes('dinheiro')) || 'Dinheiro';
+}
+
+/**
+ * Terceiro (Nice, Ana, outro) pagando: sempre dinheiro, em dólar, sem
+ * cartão (decisão do usuário). Voltando para João ou Norma, volta a forma
+ * de pagamento de costume e os cartões dessa pessoa.
+ */
+function aplicarRegrasPagador(v) {
+  if (ehTerceiro(v, f.quemPagou)) {
+    if (!f.formaAntesTerceiro) f.formaAntesTerceiro = f.formaPagamento;
+    f.formaPagamento = formaDinheiro(v);
+    f.moeda = 'USD';
+    f.cartao = '';
+    return;
+  }
+
+  if (f.formaAntesTerceiro) {
+    f.formaPagamento = f.formaAntesTerceiro;
+    f.formaAntesTerceiro = '';
+  }
+  const meus = cartoesDe(v, f.quemPagou);
+  if (!meus.includes(f.cartao)) {
+    const pref = (estado.preferencias || {}).cartao;
+    f.cartao = meus.includes(pref) ? pref : (meus[0] || '');
+  }
 }
 
 /* ---------------- Pedaços da tela ---------------- */
@@ -134,7 +167,7 @@ function categoriasVisiveis(v) {
   return { visiveis, total: todas.length };
 }
 
-function htmlCategorias(v) {
+function htmlCategorias(v = visao()) {
   const { visiveis, total } = categoriasVisiveis(v);
   return visiveis.map(c =>
     '<button type="button" class="cat-botao' + (f.categoria === c ? ' ativo' : '') + '" data-categoria="' + esc(c) + '" aria-pressed="' + (f.categoria === c) + '">' +
@@ -176,17 +209,41 @@ function htmlAviso() {
     '</span></div>';
 }
 
-function htmlCartao(v) {
+function htmlCartao(v = visao()) {
   if (!normalizar(f.formaPagamento).includes('cartao')) return '';
-  const cartoes = v.config.cartoes || [];
+  const cartoes = cartoesDe(v, f.quemPagou);
   const opcoes = cartoes.includes(f.cartao) || !f.cartao ? cartoes : cartoes.concat(f.cartao);
-  return '<label class="rotulo rotulo-espaco" for="cartao">CARTÃO</label>' +
+  return '<label class="rotulo rotulo-espaco" for="cartao">CARTÃO DE ' + esc(String(f.quemPagou).toUpperCase()) + '</label>' +
     '<div class="selecao">' +
       '<select id="cartao" class="entrada">' +
         '<option value="">Não informado</option>' +
         opcoes.map(c => '<option' + (c === f.cartao ? ' selected' : '') + '>' + esc(c) + '</option>').join('') +
+        (!travado ? '<option value="__novo">+ Cadastrar cartão…</option>' : '') +
       '</select>' + icone('baixo', 18, 2.2) +
     '</div>';
+}
+
+function htmlMoeda(v = visao()) {
+  const bloqueada = travado || ehTerceiro(v, f.quemPagou);
+  return segmento('moeda', ['USD', 'BRL', 'PYG'], f.moeda, 'seg-moeda' + (bloqueada ? ' travado' : ''));
+}
+
+function htmlPagador(v = visao()) {
+  const pessoas = (v.pessoas || []).filter(p => p.ativo).map(p => p.nome);
+  if (f.quemPagou && !pessoas.includes(f.quemPagou)) pessoas.push(f.quemPagou);
+  return segmento('quemPagou', pessoas, f.quemPagou, 'seg-quebra' + (travado ? ' travado' : '')) +
+    (!travado ? '<button type="button" class="link-forte cad-link" data-novo-pagador>' + icone('mais', 16, 2.4) + ' Outro pagador</button>' : '');
+}
+
+function htmlForma(v = visao()) {
+  if (ehTerceiro(v, f.quemPagou)) {
+    return '<div class="aviso-obrig aviso-obrig-neutro">' + icone('dinheiro', 18, 2.2) +
+      '<span>Pago por <strong>' + esc(f.quemPagou) + '</strong>: conta como <strong>dinheiro, em dólar</strong>.</span></div>';
+  }
+  const formas = v.config.formasPagamento && v.config.formasPagamento.length ? v.config.formasPagamento.slice() : ['Cartão de Crédito', 'Dinheiro'];
+  if (f.formaPagamento && !formas.includes(f.formaPagamento)) formas.push(f.formaPagamento);
+  return segmento('formaPagamento', formas, f.formaPagamento, 'seg-quebra' + (travado ? ' travado' : '')) +
+    '<div id="area-cartao">' + htmlCartao(v) + '</div>';
 }
 
 function htmlFoto() {
@@ -258,9 +315,6 @@ export const telaDespesa = {
     }
 
     const titulo = modo === 'nova' ? 'Nova despesa' : modo === 'editar' ? 'Editar despesa' : 'Corrigir lançamento';
-    const pessoas = (v.pessoas || []).filter(p => p.ativo).map(p => p.nome);
-    const formas = v.config.formasPagamento && v.config.formasPagamento.length ? v.config.formasPagamento.slice() : ['Cartão de Crédito', 'Dinheiro'];
-    if (f.formaPagamento && !formas.includes(f.formaPagamento)) formas.push(f.formaPagamento);
 
     return cabecalho({
       titulo,
@@ -281,7 +335,7 @@ export const telaDespesa = {
       '<section class="cartao">' +
         '<div class="cartao-topo">' +
           '<label class="rotulo" for="valor">VALOR</label>' +
-          segmento('moeda', ['USD', 'BRL', 'PYG'], f.moeda, 'seg-moeda' + (travado ? ' travado' : '')) +
+          '<span id="area-moeda">' + htmlMoeda(v) + '</span>' +
         '</div>' +
         '<div class="valor-grande">' +
           '<span class="valor-simbolo" id="simbolo">' + esc(simboloMoeda(f.moeda)) + '</span>' +
@@ -299,7 +353,7 @@ export const telaDespesa = {
 
       '<section class="cartao">' +
         '<div class="rotulo">QUEM PAGOU</div>' +
-        segmento('quemPagou', pessoas, f.quemPagou, travado ? 'travado' : '') +
+        '<div id="area-pagador">' + htmlPagador(v) + '</div>' +
         '<div class="rotulo rotulo-espaco">DE QUEM É A DESPESA</div>' +
         segmento('responsavel', ['João', 'Norma', 'Compartilhada'], f.responsavel, 'seg-quebra' + (travado ? ' travado' : '')) +
         '<div id="aviso-obrig">' + htmlAviso() + '</div>' +
@@ -307,8 +361,7 @@ export const telaDespesa = {
 
       '<section class="cartao">' +
         '<div class="rotulo">FORMA DE PAGAMENTO</div>' +
-        segmento('formaPagamento', formas, f.formaPagamento, 'seg-quebra' + (travado ? ' travado' : '')) +
-        '<div id="area-cartao">' + htmlCartao(v) + '</div>' +
+        '<div id="area-forma">' + htmlForma(v) + '</div>' +
       '</section>' +
 
       '<section class="cartao">' +
@@ -339,36 +392,68 @@ export const telaDespesa = {
       $('#aviso-obrig').innerHTML = htmlAviso();
     };
 
-    if (!travado) {
-      $('#valor').addEventListener('input', ev => {
-        f.valorTexto = ev.target.value;
-        atualizarValor();
-      });
-
-      ligarSegmento(raiz, 'moeda', valor => {
+    const ligarMoeda = () => {
+      if (travado || ehTerceiro(visao(), f.quemPagou)) return;
+      ligarSegmento($('#area-moeda'), 'moeda', valor => {
         f.moeda = valor;
         $('#simbolo').textContent = simboloMoeda(valor);
         atualizarValor();
         $('#area-detalhes').innerHTML = htmlDetalhes(v);
         ligarDetalhes();
       });
+    };
 
-      ligarSegmento(raiz, 'quemPagou', valor => {
+    const ligarForma = () => {
+      if (travado) return;
+      ligarSegmento($('#area-forma'), 'formaPagamento', valor => {
+        f.formaPagamento = valor;
+        $('#area-cartao').innerHTML = htmlCartao();
+        ligarCartao();
+        $('#area-detalhes').innerHTML = htmlDetalhes(v);
+        ligarDetalhes();
+      });
+      ligarCartao();
+    };
+
+    // Trocar quem pagou pode travar/destravar moeda, forma e cartão.
+    const redesenharPagador = () => {
+      const atual = visao();
+      $('#area-pagador').innerHTML = htmlPagador(atual);
+      $('#area-moeda').innerHTML = htmlMoeda(atual);
+      $('#simbolo').textContent = simboloMoeda(f.moeda);
+      $('#area-forma').innerHTML = htmlForma(atual);
+      atualizarValor();
+      $('#area-detalhes').innerHTML = htmlDetalhes(atual);
+      ligarDetalhes();
+      ligarPagador();
+      ligarMoeda();
+      ligarForma();
+    };
+
+    const ligarPagador = () => {
+      if (travado) return;
+      ligarSegmento($('#area-pagador'), 'quemPagou', valor => {
         f.quemPagou = valor;
-        $('#aviso-obrig').innerHTML = htmlAviso();
+        aplicarRegrasPagador(visao());
+        redesenharPagador();
+      });
+      const novo = $('#area-pagador [data-novo-pagador]');
+      if (novo) novo.addEventListener('click', () => abrirNovoPagador(nome => {
+        f.quemPagou = nome;
+        aplicarRegrasPagador(visao());
+        redesenharPagador();
+      }));
+    };
+
+    if (!travado) {
+      $('#valor').addEventListener('input', ev => {
+        f.valorTexto = ev.target.value;
+        atualizarValor();
       });
 
       ligarSegmento(raiz, 'responsavel', valor => {
         f.responsavel = valor;
         $('#aviso-obrig').innerHTML = htmlAviso();
-      });
-
-      ligarSegmento(raiz, 'formaPagamento', valor => {
-        f.formaPagamento = valor;
-        $('#area-cartao').innerHTML = htmlCartao(v);
-        ligarCartao();
-        $('#area-detalhes').innerHTML = htmlDetalhes(v);
-        ligarDetalhes();
       });
     }
 
@@ -379,17 +464,30 @@ export const telaDespesa = {
       const b = ev.target.closest('[data-categoria]');
       if (b) {
         f.categoria = b.getAttribute('data-categoria');
-        $('#grade-cats').innerHTML = htmlCategorias(v);
+        $('#grade-cats').innerHTML = htmlCategorias();
         return;
       }
-      if (ev.target.closest('[data-todas-categorias]')) abrirTodasCategorias(v, raiz);
+      if (ev.target.closest('[data-todas-categorias]')) abrirTodasCategorias(visao(), raiz);
     });
 
     const ligarCartao = () => {
       const sel = $('#cartao');
-      if (sel) sel.addEventListener('change', () => { f.cartao = sel.value; });
+      if (!sel) return;
+      sel.addEventListener('change', () => {
+        if (sel.value !== '__novo') { f.cartao = sel.value; return; }
+        sel.value = f.cartao;
+        abrirNovoCartao(f.quemPagou, (nome, extras) => {
+          if (mesmaDona(extras.dono)) f.cartao = nome;
+          $('#area-cartao').innerHTML = htmlCartao();
+          ligarCartao();
+        });
+      });
     };
-    ligarCartao();
+    const mesmaDona = dono => normalizar(dono) === normalizar(f.quemPagou);
+
+    ligarPagador();
+    ligarMoeda();
+    ligarForma();
 
     const ligarFoto = () => {
       const area = $('#area-foto');
@@ -425,7 +523,7 @@ export const telaDespesa = {
       const area = $('#area-gps');
       const buscar = area.querySelector('[data-gps-buscar]');
       const remover = area.querySelector('[data-gps-remover]');
-      if (buscar) buscar.addEventListener('click', () => buscarLocal());
+      if (buscar) buscar.addEventListener('click', () => buscarLocal(true));
       if (remover) remover.addEventListener('click', () => {
         f.gps = '';
         f.gpsSituacao = 'nao';
@@ -434,7 +532,7 @@ export const telaDespesa = {
       });
     };
 
-    const buscarLocal = async () => {
+    const buscarLocal = async (pedidoPeloToque = false) => {
       f.gpsSituacao = 'buscando';
       $('#area-gps').innerHTML = htmlGps();
       const formulario = f;
@@ -444,6 +542,7 @@ export const telaDespesa = {
       f.gpsSituacao = posicao ? 'ok' : 'nao';
       $('#area-gps').innerHTML = htmlGps();
       ligarGps();
+      if (!posicao && pedidoPeloToque && ultimoErroLocalizacao) avisar(ultimoErroLocalizacao, 'erro');
     };
 
     if (modo === 'nova' && f.gpsSituacao === 'buscando') buscarLocal();
@@ -552,8 +651,8 @@ function montarDados() {
     local: f.local.trim(),
     categoria: f.categoria,
     descricao: f.descricao.trim(),
-    formaPagamento: f.formaPagamento,
-    cartao: normalizar(f.formaPagamento).includes('cartao') ? f.cartao || '' : '',
+    formaPagamento: ehTerceiro(visao(), f.quemPagou) ? formaDinheiro(visao()) : f.formaPagamento,
+    cartao: !ehTerceiro(visao(), f.quemPagou) && normalizar(f.formaPagamento).includes('cartao') ? f.cartao || '' : '',
     quemPagou: f.quemPagou,
     responsavel: f.responsavel,
     observacao: f.observacao.trim(),
@@ -611,7 +710,9 @@ async function salvar(raiz) {
     await enfileirar(tipo, dados);
   }
 
-  await lembrarEscolhas({ moeda: dados.moeda, formaPagamento: dados.formaPagamento, cartao: dados.cartao || estado.preferencias.cartao || '' });
+  if (!ehTerceiro(visao(), dados.quemPagou)) {
+    await lembrarEscolhas({ moeda: dados.moeda, formaPagamento: dados.formaPagamento, cartao: dados.cartao || estado.preferencias.cartao || '' });
+  }
 
   salvo = true;
   avisar(navigator.onLine ? (modo === 'nova' ? 'Despesa salva' : 'Alteração salva') : 'Guardada no iPhone. Sobe quando houver sinal.');
@@ -621,17 +722,27 @@ async function salvar(raiz) {
 function abrirTodasCategorias(v, raiz) {
   abrirFolha({
     titulo: 'Categoria',
-    html: '<div class="opcoes">' + (v.categorias || []).map(c =>
+    html: '<button type="button" class="botao botao-contorno cad-botao cad-botao-topo" data-nova-categoria>' + icone('mais', 18, 2.4) + ' Cadastrar categoria</button>' +
+      '<div class="opcoes">' + (v.categorias || []).map(c =>
       '<button type="button" class="opcao' + (f.categoria === c ? ' ativo' : '') + '" data-valor="' + esc(c) + '">' +
       '<span class="opcao-ic">' + iconeCategoria(c, 20) + '</span><span>' + esc(c) + '</span>' +
       (f.categoria === c ? icone('check', 20, 2.6) : '') + '</button>'
     ).join('') + '</div>',
     montar: (corpo, fechar) => {
       corpo.addEventListener('click', ev => {
+        if (ev.target.closest('[data-nova-categoria]')) {
+          fechar();
+          abrirNovaCategoria(nome => {
+            if (!f) return;
+            f.categoria = nome;
+            raiz.querySelector('#grade-cats').innerHTML = htmlCategorias();
+          });
+          return;
+        }
         const b = ev.target.closest('[data-valor]');
         if (!b) return;
         f.categoria = b.getAttribute('data-valor');
-        raiz.querySelector('#grade-cats').innerHTML = htmlCategorias(v);
+        raiz.querySelector('#grade-cats').innerHTML = htmlCategorias();
         fechar();
       });
     }

@@ -205,11 +205,24 @@ export function comprimirFoto(arquivo, ladoMaximo = 1600, qualidade = 0.72) {
 
 export function obterLocalizacao(tempo = 8000) {
   return new Promise(resolver => {
-    if (!('geolocation' in navigator)) return resolver('');
+    if (!('geolocation' in navigator)) {
+      ultimoErroLocalizacao = 'Este aparelho não oferece localização ao app.';
+      return resolver('');
+    }
     navigator.geolocation.getCurrentPosition(
-      p => resolver(p.coords.latitude.toFixed(6) + ', ' + p.coords.longitude.toFixed(6)),
-      () => resolver(''),
+      p => { ultimoErroLocalizacao = ''; resolver(p.coords.latitude.toFixed(6) + ', ' + p.coords.longitude.toFixed(6)); },
+      e => {
+        ultimoErroLocalizacao = e && e.code === 1
+          ? 'Localização bloqueada para o app. No iPhone: Ajustes > Privacidade e Segurança > Serviços de Localização > Sites do Safari > Durante o Uso.'
+          : e && e.code === 3
+            ? 'O iPhone demorou para achar o local. Tente de novo em lugar aberto.'
+            : 'Não foi possível achar o local agora.';
+        resolver('');
+      },
       { enableHighAccuracy: false, timeout: tempo, maximumAge: 300000 }
     );
   });
 }
+
+/** Motivo da última falha ao buscar o local (vazio se deu certo). */
+export let ultimoErroLocalizacao = '';

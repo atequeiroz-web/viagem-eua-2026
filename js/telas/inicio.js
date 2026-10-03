@@ -27,8 +27,9 @@ export const telaInicio = {
   render() {
     const dicaInstalar = ehIOS() && !instalado()
       ? '<div class="cartao cartao-dica">' + icone('info', 20, 2) +
-        '<div><strong>Instale o app antes de configurar.</strong> No Safari, toque em <strong>Compartilhar</strong> ' +
-        '(o quadrado com a seta para cima) e depois em <strong>Adicionar à Tela de Início</strong>. ' +
+        '<div><strong>Instale o app antes de configurar.</strong> No Safari, toque em <strong>•••</strong> (canto inferior direito), ' +
+        'depois em <strong>Compartilhar</strong> e em <strong>Adicionar à Tela de Início</strong>. ' +
+        'Em iPhones mais antigos, o botão Compartilhar fica direto na barra de baixo. ' +
         'Abra o app pelo ícone novo e faça a configuração lá.</div></div>'
       : '';
 
@@ -52,7 +53,8 @@ export const telaInicio = {
         '<label class="rotulo" for="chave">CHAVE DE ACESSO</label>' +
         '<input id="chave" class="entrada entrada-chave" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" ' +
           'placeholder="XXXX-XXXX-XXXX-XXXX" value="' + esc(f.chave) + '" maxlength="19">' +
-        '<p class="ajuda">A chave apareceu no Apps Script quando a configuração foi feita. Ela é digitada uma única vez.</p>' +
+        '<button type="button" class="botao botao-secundario botao-colar" data-colar>' + icone('recibo', 18, 2) + ' Colar a chave copiada</button>' +
+        '<p class="ajuda">Copie a chave das suas Notas e toque em Colar. Ela fica guardada neste iPhone; não é preciso digitar de novo.</p>' +
         '<p class="erro-form" id="erro-inicio" role="alert">' + esc(f.erro) + '</p>' +
         '<button type="submit" class="botao botao-primario botao-grande" id="entrar"' + (f.enviando ? ' disabled' : '') + '>' +
           (f.enviando ? icone('atualizar', 20, 2.2, ' data-gira="1"') + ' Conectando…' : 'Entrar') +
@@ -79,6 +81,25 @@ export const telaInicio = {
       const formatada = formatarChave(campo.value);
       if (formatada !== campo.value) campo.value = formatada;
       f.chave = formatada;
+    });
+
+    const colar = raiz.querySelector('[data-colar]');
+    if (colar) colar.addEventListener('click', async () => {
+      try {
+        const texto = await navigator.clipboard.readText();
+        const formatada = formatarChave(texto);
+        if (formatada.replace(/-/g, '').length !== 16) {
+          raiz.querySelector('#erro-inicio').textContent = 'O que está copiado não parece a chave (16 letras e números).';
+          return;
+        }
+        campo.value = formatada;
+        f.chave = formatada;
+        raiz.querySelector('#erro-inicio').textContent = '';
+      } catch (e) {
+        // Sem permissão para ler a área de transferência: cola pelo próprio campo.
+        campo.focus();
+        raiz.querySelector('#erro-inicio').textContent = 'Toque e segure no campo da chave e escolha Colar.';
+      }
     });
 
     raiz.querySelector('#form-inicio').addEventListener('submit', async ev => {
