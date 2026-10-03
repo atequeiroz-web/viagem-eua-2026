@@ -1,3 +1,4 @@
+import { registrarDiario } from './db.js';
 // Funções utilitárias: texto, números, moedas e datas.
 
 export function esc(valor) {
@@ -203,26 +204,63 @@ export function comprimirFoto(arquivo, ladoMaximo = 1600, qualidade = 0.72) {
   });
 }
 
+/**
+ * Pede a posição ao iPhone. Nunca fica esperando para sempre: pelas
+ * regras dos navegadores, o prazo do GPS só começa a contar depois que a
+ * permissão é dada; se o iPhone não mostrar o pedido de permissão, a busca
+ * ficaria parada. Por isso há um prazo próprio, e o motivo da falha fica
+ * em ultimoErroLocalizacao (e no diário do iPhone).
+ */
 export function obterLocalizacao(tempo = 8000, alta = false) {
   return new Promise(resolver => {
+    let terminou = false;
+    const fim = (posicao, erro, registro) => {
+      if (terminou) return;
+      terminou = true;
+      clearTimeout(vigia);
+      ultimoErroLocalizacao = erro || '';
+      registrarDiario('local: ' + registro);
+      resolver(posicao);
+    };
+
     if (!('geolocation' in navigator)) {
-      ultimoErroLocalizacao = 'Este aparelho não oferece localização ao app.';
-      return resolver('');
+      return fim('', 'Este aparelho não oferece localização ao app.', 'sem suporte');
     }
-    navigator.geolocation.getCurrentPosition(
-      p => { ultimoErroLocalizacao = ''; resolver(p.coords.latitude.toFixed(6) + ', ' + p.coords.longitude.toFixed(6)); },
-      e => {
-        ultimoErroLocalizacao = e && e.code === 1
-          ? 'Localização bloqueada para o app. No iPhone: Ajustes > Privacidade e Segurança > Serviços de Localização > Sites do Safari > Durante o Uso.'
-          : e && e.code === 3
-            ? 'O iPhone demorou para achar o local. Tente de novo em lugar aberto.'
-            : 'Não foi possível achar o local agora.';
-        resolver('');
-      },
-      { enableHighAccuracy: alta, timeout: tempo, maximumAge: alta ? 60000 : 300000 }
-    );
+
+    const vigia = setTimeout(() => fim('',
+      'O iPhone não respondeu ao pedido de localização. Confira em Ajustes > Privacidade e Segurança > Serviços de Localização: ' +
+      'a chave geral deve estar ligada e, em "Sites do Safari", escolha "Durante o Uso". Depois feche e abra o app.',
+      'sem resposta do iPhone em ' + Math.round((tempo + 7000) / 1000) + ' s'), tempo + 7000);
+
+    try {
+      navigator.geolocation.getCurrentPosition(
+        p => fim(p.coords.latitude.toFixed(6) + ', ' + p.coords.longitude.toFixed(6), '',
+          'ok (precisão ' + Math.round(p.coords.accuracy) + ' m)'),
+        e => fim('',
+          e && e.code === 1
+            ? 'Localização bloqueada para o app. No iPhone: Ajustes > Privacidade e Segurança > Serviços de Localização > Sites do Safari > Durante o Uso. Depois feche e abra o app.'
+            : e && e.code === 3
+              ? 'O iPhone demorou para achar o local. Tente de novo em lugar aberto.'
+              : 'Não foi possível achar o local agora.',
+          'erro ' + (e && e.code) + ' ' + (e && e.message || '')),
+        { enableHighAccuracy: alta, timeout: tempo, maximumAge: alta ? 60000 : 300000 }
+      );
+    } catch (erro) {
+      fim('', 'Não foi possível pedir a localização ao iPhone.', 'exceção ' + (erro && erro.message));
+    }
   });
 }
 
 /** Motivo da última falha ao buscar o local (vazio se deu certo). */
 export let ultimoErroLocalizacao = '';
+
+/** Situação da permissão de localização (granted, prompt, denied ou desconhecida). */
+export async function permissaoLocalizacao() {
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const r = await navigator.permissions.query({ name: 'geolocation' });
+      return r.state;
+    }
+  } catch (e) { /* sem suporte */ }
+  return 'desconhecida';
+}

@@ -259,7 +259,7 @@ function htmlFoto() {
 }
 
 function htmlGps() {
-  if (f.gpsSituacao === 'buscando') return '<div class="gps gps-buscando">' + icone('pin', 20, 2) + '<span>Buscando local…</span></div>';
+  if (f.gpsSituacao === 'buscando') return '<button type="button" class="gps gps-buscando" data-gps-cancelar>' + icone('pin', 20, 2) + '<span>Buscando local…</span><span class="gps-x">cancelar</span></button>';
   if (f.gps) return '<button type="button" class="gps gps-ok" data-gps-remover>' + icone('pin', 20, 2) + '<span>Local registrado</span><span class="gps-x">remover</span></button>';
   return '<button type="button" class="gps" data-gps-buscar>' + icone('pin', 20, 2) + '<span>Registrar local</span></button>';
 }
@@ -523,6 +523,13 @@ export const telaDespesa = {
       const area = $('#area-gps');
       const buscar = area.querySelector('[data-gps-buscar]');
       const remover = area.querySelector('[data-gps-remover]');
+      const cancelar = area.querySelector('[data-gps-cancelar]');
+      if (cancelar) cancelar.addEventListener('click', () => {
+        f.gpsSituacao = 'nao';
+        f.gpsBusca = (f.gpsBusca || 0) + 1;   // ignora a resposta da busca cancelada
+        area.innerHTML = htmlGps();
+        ligarGps();
+      });
       if (buscar) buscar.addEventListener('click', () => buscarLocal(true));
       if (remover) remover.addEventListener('click', () => {
         f.gps = '';
@@ -534,11 +541,13 @@ export const telaDespesa = {
 
     const buscarLocal = async (pedidoPeloToque = false) => {
       f.gpsSituacao = 'buscando';
+      const busca = f.gpsBusca = (f.gpsBusca || 0) + 1;
       $('#area-gps').innerHTML = htmlGps();
+      ligarGps();
       const formulario = f;
       // Pedido pelo toque: GPS de alta precisão, com mais tempo.
       const posicao = await obterLocalizacao(pedidoPeloToque ? 15000 : 8000, pedidoPeloToque);
-      if (f !== formulario || !$('#area-gps')) return;
+      if (f !== formulario || !$('#area-gps') || f.gpsBusca !== busca) return;
       f.gps = posicao;
       f.gpsSituacao = posicao ? 'ok' : 'nao';
       $('#area-gps').innerHTML = htmlGps();

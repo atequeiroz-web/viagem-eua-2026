@@ -320,10 +320,13 @@ export function avisar(texto, tipo = 'ok') {
   el.innerHTML = icone(tipo === 'erro' ? 'alerta' : tipo === 'info' ? 'info' : 'check', 18, 2.4) + '<span>' + esc(texto) + '</span>';
   area.appendChild(el);
   requestAnimationFrame(() => el.classList.add('visivel'));
-  setTimeout(() => {
+  const sumir = () => {
     el.classList.remove('visivel');
     setTimeout(() => el.remove(), 250);
-  }, tipo === 'erro' ? 5000 : 2600);
+  };
+  // Mensagens de erro longas ficam mais tempo; um toque fecha.
+  el.addEventListener('click', sumir);
+  setTimeout(sumir, tipo === 'erro' ? Math.max(5000, Math.min(16000, String(texto).length * 75)) : 2600);
 }
 
 /* ---------------- Faixa de nova versão ---------------- */

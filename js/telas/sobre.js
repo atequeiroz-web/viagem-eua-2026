@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.5.1', '03/10/2026', [
+    'Registrar local nunca fica parado em "Buscando local…": há um prazo, a opção de cancelar e, se falhar, o motivo na tela.',
+    'O diário registra a permissão de localização e cada tentativa de achar o local.'
+  ]],
   ['1.5.0', '03/10/2026', [
     'Mapa da viagem: cada despesa com local vira um marco na cor da categoria, ligado na ordem do trajeto; tocar no marco abre a despesa.',
     'Filtro do mapa por dia e lista das paradas.',

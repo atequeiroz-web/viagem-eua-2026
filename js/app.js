@@ -4,7 +4,8 @@ import { iniciar, configurado, sincronizar, estado, assinar } from './dados.js';
 import { VERSAO } from './config.js';
 import { registrarRota, iniciarNavegacao, ir, mostrarNovaVersao, renderizar } from './ui.js';
 import { icone } from './icones.js';
-import { esc } from './util.js';
+import { esc, permissaoLocalizacao } from './util.js';
+import { registrarDiario } from './db.js';
 import { telaInicio } from './telas/inicio.js';
 import { telaResumo, telaResumoDias, telaResumoTotal, telaResumoAnalise } from './telas/resumo.js';
 import { telaHistorico } from './telas/historico.js';
@@ -195,6 +196,7 @@ async function comecar() {
   }
 
   iniciarNavegacao(configurado() ? '/resumo' : '/inicio');
+  permissaoLocalizacao().then(estadoPermissao => registrarDiario('permissão de localização: ' + estadoPermissao));
   registrarServiceWorker();
   sincronizarDeTempoEmTempo();
 
