@@ -234,8 +234,11 @@ export function obterLocalizacao(tempo = 8000, alta = false) {
 
     try {
       navigator.geolocation.getCurrentPosition(
-        p => fim(p.coords.latitude.toFixed(6) + ', ' + p.coords.longitude.toFixed(6), '',
-          'ok (precisão ' + Math.round(p.coords.accuracy) + ' m)'),
+        p => {
+          ultimaPrecisao = Math.round(p.coords.accuracy || 0);
+          fim(p.coords.latitude.toFixed(6) + ', ' + p.coords.longitude.toFixed(6), '',
+            'ok (precisão ' + ultimaPrecisao + ' m)');
+        },
         e => fim('',
           e && e.code === 1
             ? 'Localização bloqueada para o app. No iPhone: Ajustes > Privacidade e Segurança > Serviços de Localização > Sites do Safari > Durante o Uso. Depois feche e abra o app.'
@@ -253,6 +256,9 @@ export function obterLocalizacao(tempo = 8000, alta = false) {
 
 /** Motivo da última falha ao buscar o local (vazio se deu certo). */
 export let ultimoErroLocalizacao = '';
+
+/** Precisão, em metros, do último local encontrado. */
+export let ultimaPrecisao = 0;
 
 /** Situação da permissão de localização (granted, prompt, denied ou desconhecida). */
 export async function permissaoLocalizacao() {

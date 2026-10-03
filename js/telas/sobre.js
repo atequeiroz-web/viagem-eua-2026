@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.5.2', '03/10/2026', [
+    'Local registrado mostra as coordenadas e a precisão; ao tocar, aparece a confirmação.',
+    'O texto não passa mais por baixo do relógio e da bateria ao rolar a tela.'
+  ]],
   ['1.5.1', '03/10/2026', [
     'Registrar local nunca fica parado em "Buscando local…": há um prazo, a opção de cancelar e, se falhar, o motivo na tela.',
     'O diário registra a permissão de localização e cada tentativa de achar o local.'
