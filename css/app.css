@@ -986,3 +986,9 @@ body::before {
 .cad-cat .opcao-ic { width: 26px; height: 26px; border-radius: 999px; }
 .botao-colar { width: 100%; margin-top: 10px; }
 .diario-texto { font-weight: 600; font-size: 14px; }
+
+/* 1.4.1: tela de "baixando os dados" */
+.baixando { text-align: center; }
+.baixando .inicio-sub { max-width: 320px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+.baixando .botao { margin-top: 18px; }
+.pulsando { animation: pulsar 1.4s ease-in-out infinite; }

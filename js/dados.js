@@ -158,11 +158,24 @@ export async function desconectar() {
   notificar();
 }
 
+let snapshotGuardadoNestaAbertura = false;
+
 async function guardarSnapshot(snapshot) {
   estado.snapshot = snapshot;
   estado.ultimaSync = new Date().toISOString();
-  await db.kvGravar('snapshot', snapshot);
-  await db.kvGravar('ultimaSync', estado.ultimaSync);
+  try {
+    await db.kvGravar('snapshot', snapshot);
+    await db.kvGravar('ultimaSync', estado.ultimaSync);
+    // Diário: só a 1ª gravação de cada abertura, para não encher.
+    if (!snapshotGuardadoNestaAbertura) {
+      snapshotGuardadoNestaAbertura = true;
+      const confere = await db.kvLer('snapshot');
+      db.registrarDiario('cópia da planilha guardada (' + Math.round(JSON.stringify(snapshot).length / 1024) + ' KB)' + (confere ? '' : ' — MAS NÃO FOI ENCONTRADA AO CONFERIR'));
+    }
+  } catch (erro) {
+    db.registrarDiario('FALHA ao guardar a cópia da planilha: ' + (erro && (erro.name + ' ' + erro.message)));
+    throw erro;
+  }
 }
 
 /* =========================================================

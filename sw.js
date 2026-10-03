@@ -1,7 +1,7 @@
 // Service worker: guarda o app no iPhone para abrir sem sinal.
 // Ao publicar uma versão nova, aumente VERSAO (igual a js/config.js).
 
-const VERSAO = '1.4.0';
+const VERSAO = '1.4.1';
 const CACHE = 'viagem-eua-' + VERSAO;
 
 const ARQUIVOS = [

@@ -1,8 +1,10 @@
 // Ponto de partida do app.
 
-import { iniciar, configurado, sincronizar, estado } from './dados.js';
+import { iniciar, configurado, sincronizar, estado, assinar } from './dados.js';
 import { VERSAO } from './config.js';
-import { registrarRota, iniciarNavegacao, ir, mostrarNovaVersao } from './ui.js';
+import { registrarRota, iniciarNavegacao, ir, mostrarNovaVersao, renderizar } from './ui.js';
+import { icone } from './icones.js';
+import { esc } from './util.js';
 import { telaInicio } from './telas/inicio.js';
 import { telaResumo, telaResumoDias, telaResumoTotal, telaResumoAnalise } from './telas/resumo.js';
 import { telaHistorico } from './telas/historico.js';
@@ -18,7 +20,40 @@ import {
   telaRelatorios, telaRelExtrato, telaRelPessoa, telaRelCartao, telaRelDividas, telaRelMontar
 } from './telas/relatorio.js';
 
-/** Telas que exigem o aparelho já configurado. */
+/*
+ * Sem a cópia da planilha no iPhone (primeira abertura depois de o iOS
+ * apagar os dados, por exemplo), nenhuma tela abre "vazia": aparece o
+ * aviso de que os dados estão sendo baixados, e a tela pedida abre
+ * sozinha quando eles chegam. Abrir vazia fazia sumir categorias e
+ * pagadores e dava a falsa mensagem de ponte desatualizada (1.4.0).
+ */
+let esperandoPlanilha = false;
+
+function telaBaixando() {
+  const semSinal = !navigator.onLine;
+  const erro = estado.ultimoErro;
+  return '<div class="inicio baixando">' +
+    '<img src="icones/icone-192.png" alt="" width="64" height="64" class="inicio-icone' + (semSinal || erro ? '' : ' pulsando') + '">' +
+    '<h1 class="inicio-titulo">' + (semSinal ? 'Sem internet' : erro ? 'Não deu para baixar os dados' : 'Baixando os dados da planilha…') + '</h1>' +
+    '<p class="inicio-sub">' + (semSinal
+      ? 'Este iPhone ainda não tem a cópia da planilha. Conecte-se à internet e ela será baixada sozinha.'
+      : erro
+        ? esc(erro)
+        : 'Isso só acontece quando o iPhone está sem a cópia dos dados. Leva alguns segundos.') + '</p>' +
+    (semSinal || erro ? '<button type="button" class="botao botao-primario botao-grande" data-tentar>' + icone('atualizar', 20, 2.2) + ' Tentar de novo</button>' : '') +
+  '</div>';
+}
+
+assinar(() => {
+  if (esperandoPlanilha && estado.snapshot) {
+    esperandoPlanilha = false;
+    renderizar();
+  } else if (esperandoPlanilha && !estado.sincronizando) {
+    renderizar(true);
+  }
+});
+
+/** Telas que exigem o aparelho já configurado (e com a cópia da planilha). */
 function protegida(tela) {
   return new Proxy(tela, {
     get(alvo, prop) {
@@ -28,14 +63,26 @@ function protegida(tela) {
             setTimeout(() => ir('/inicio', true), 0);
             return '';
           }
+          if (!estado.snapshot) {
+            esperandoPlanilha = true;
+            return telaBaixando();
+          }
+          esperandoPlanilha = false;
           return alvo.render(params);
         };
       }
       if (prop === 'montar') {
         return (raiz, params) => {
-          if (configurado() && alvo.montar) alvo.montar(raiz, params);
+          if (!configurado()) return;
+          if (!estado.snapshot) {
+            const b = raiz.querySelector('[data-tentar]');
+            if (b) b.addEventListener('click', () => { estado.ultimoErro = null; renderizar(true); sincronizar(); });
+            return;
+          }
+          if (alvo.montar) alvo.montar(raiz, params);
         };
       }
+      if (prop === 'semNav' && !estado.snapshot) return true;
       return alvo[prop];
     }
   });

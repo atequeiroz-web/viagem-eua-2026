@@ -34,9 +34,40 @@ export function ir(caminho, substituir = false) {
   }
 }
 
-export function voltar(alternativa = '/resumo') {
-  if (history.length > 1 && sessionStorage.getItem('navegou') === '1') history.back();
-  else ir(alternativa, true);
+/*
+ * VOLTAR (1.4.1): o app guarda o próprio caminho percorrido desde que foi
+ * aberto. Voltar leva à tela de onde se veio; sem caminho (app aberto
+ * direto numa tela interna), leva à tela "mãe" indicada pela própria tela
+ * e, no fim, ao Resumo, que é a tela principal. Antes usava o histórico do
+ * navegador, que no iPhone guarda telas de aberturas anteriores e fazia o
+ * Voltar cair em lugar errado.
+ */
+const ABAS = ['/resumo', '/historico', '/contas', '/conversor'];
+let pilha = [];
+
+function registrarCaminho(caminho) {
+  if (ABAS.includes(caminho)) { pilha = [caminho]; return; }
+  const i = pilha.lastIndexOf(caminho);
+  if (i >= 0) pilha = pilha.slice(0, i + 1);
+  else pilha.push(caminho);
+}
+
+export async function voltar(alternativa = '/resumo') {
+  if (telaAtual && telaAtual.podeSair) {
+    const pode = await telaAtual.podeSair();
+    if (!pode) return;
+  }
+  let anterior;
+  if (pilha.length >= 2) {
+    pilha.pop();
+    anterior = pilha[pilha.length - 1];
+  } else {
+    // Sem caminho percorrido: sobe para a tela "mãe" e recomeça dali.
+    anterior = alternativa || '/resumo';
+    pilha = [];
+  }
+  ignorarProximaMudanca = false;
+  ir(anterior, true);
 }
 
 function localizar(caminho) {
@@ -94,6 +125,7 @@ export function renderizar(manterRolagem = false) {
 
   telaAtual = achado.tela;
   paramsAtuais = achado.params;
+  if (caminho !== caminhoAtual) registrarCaminho(caminho);
   caminhoAtual = caminho;
 
   const app = document.getElementById('app');
