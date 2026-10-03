@@ -1,7 +1,7 @@
 // Service worker: guarda o app no iPhone para abrir sem sinal.
 // Ao publicar uma versão nova, aumente VERSAO (igual a js/config.js).
 
-const VERSAO = '1.4.1';
+const VERSAO = '1.4.2';
 const CACHE = 'viagem-eua-' + VERSAO;
 
 const ARQUIVOS = [
@@ -33,6 +33,7 @@ const ARQUIVOS = [
   'js/telas/pagamento.js',
   'js/telas/relatorio.js',
   'js/telas/cadastros.js',
+  'js/telas/sobre.js',
   'fontes/plus-jakarta-sans-latin.woff2',
   'fontes/plus-jakarta-sans-latin-ext.woff2',
   'icones/icone-192.png',

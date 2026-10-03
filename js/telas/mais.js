@@ -1,8 +1,7 @@
 // MAIS: aparelho, envio, dinheiro em espécie e informações.
 
 import { estado, visao, sincronizar, desconectar, pendentes } from '../dados.js';
-import { cabecalho, confirmar, avisar, ir, abrirFolha } from '../ui.js';
-import { lerDiario } from '../db.js';
+import { cabecalho, confirmar, avisar, ir } from '../ui.js';
 import { icone } from '../icones.js';
 import { esc, tempoRelativo } from '../util.js';
 import { VERSAO } from '../config.js';
@@ -34,14 +33,9 @@ export const telaMais = {
         '<li>' + link('/relatorios', 'recibo', 'Relatórios', 'Extrato, por pessoa, por cartão, dívidas e montado') + '</li>' +
         '<li>' + link('/fundos', 'dinheiro', 'Dinheiro em espécie', 'Compras de dólar e guarani e saldos') + '</li>' +
         '<li>' + link('/cadastros', 'usuario', 'Cadastros', 'Pagadores, cartões e categorias') + '</li>' +
+        '<li>' + link('/sobre', 'info', 'Sobre o app', 'Versão ' + esc(VERSAO) + ' · componentes, novidades e ajuda') + '</li>' +
       '</ul>' +
       '<div class="area-botao"><button type="button" class="botao botao-secundario botao-grande" data-atualizar>' + icone('atualizar', 20, 2.2) + ' Atualizar dados agora</button></div>' +
-      '<section class="cartao">' +
-        '<div class="linha-simples"><span>Versão do app</span><strong>' + esc(VERSAO) + '</strong></div>' +
-        '<div class="linha-simples"><span>Versão da ponte</span><strong>' + esc(v.versaoApi || '—') + '</strong></div>' +
-        '<p class="texto-suave">Os cálculos oficiais (câmbio, dívidas, acertos) são feitos pelo motor na planilha. O app mostra e envia os lançamentos.</p>' +
-        '<button type="button" class="botao-texto" data-diario>Ver o diário deste iPhone</button>' +
-      '</section>' +
       '<div class="area-botao"><button type="button" class="botao botao-perigo-suave" data-desconectar>' + icone('sair', 18, 2) + ' Desconectar este iPhone</button></div>';
   },
 
@@ -51,23 +45,6 @@ export const telaMais = {
       await sincronizar();
       if (!estado.ultimoErro) avisar('Dados atualizados');
       else avisar(estado.ultimoErro, 'erro');
-    });
-
-    raiz.querySelector('[data-diario]').addEventListener('click', () => {
-      const lista = lerDiario().slice().reverse();
-      const quando = iso => {
-        const d = new Date(iso);
-        return isNaN(d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-      };
-      abrirFolha({
-        titulo: 'Diário deste iPhone',
-        html: '<p class="texto-suave">Aberturas do app e falhas do armazenamento, da mais recente para a mais antiga. Serve para descobrir o que aconteceu se o app fechar ou pedir a chave de novo.</p>' +
-          (lista.length
-            ? '<ul class="lista lista-simples">' + lista.map(x =>
-                '<li class="item item-compacto item-estatico"><span class="item-meio"><span class="item-sub">' + esc(quando(x.quando)) + '</span>' +
-                '<span class="item-titulo diario-texto">' + esc(x.texto) + '</span></span></li>').join('') + '</ul>'
-            : '<p class="texto-suave">Nada registrado ainda.</p>')
-      });
     });
 
     raiz.querySelector('[data-desconectar]').addEventListener('click', async () => {

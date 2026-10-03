@@ -992,3 +992,18 @@ body::before {
 .baixando .inicio-sub { max-width: 320px; margin-left: auto; margin-right: auto; line-height: 1.5; }
 .baixando .botao { margin-top: 18px; }
 .pulsando { animation: pulsar 1.4s ease-in-out infinite; }
+
+/* 1.4.2: Sobre o app */
+.sobre-id { display: flex; align-items: center; gap: 14px; }
+.sobre-icone { border-radius: 16px; box-shadow: 0 6px 16px rgba(23, 35, 79, 0.18); }
+.sobre-nome { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.sobre-desc { margin: 2px 0 0; font-size: 14px; color: var(--suave); }
+.sobre-texto p { display: flex; gap: 10px; margin: 0; font-size: 14.5px; line-height: 1.5; }
+.sobre-texto p + p { margin-top: 10px; }
+.sobre-texto svg { flex-shrink: 0; margin-top: 2px; color: var(--acento); }
+.sobre-versao .cartao-topo { margin-bottom: 6px; }
+.sobre-lista, .sobre-passos { margin: 0; padding-left: 20px; font-size: 14.5px; line-height: 1.5; }
+.sobre-lista li + li, .sobre-passos li + li { margin-top: 4px; }
+.sobre-diario { width: 100%; margin-top: 14px; }
+.linha-quebra strong { white-space: normal; text-align: right; overflow-wrap: anywhere; }
+.linha-quebra span { flex-shrink: 0; }
