@@ -1,7 +1,7 @@
 // Service worker: guarda o app no iPhone para abrir sem sinal.
 // Ao publicar uma versão nova, aumente VERSAO (igual a js/config.js).
 
-const VERSAO = '1.5.3';
+const VERSAO = '1.5.4';
 const CACHE = 'viagem-eua-' + VERSAO;
 // Pedaços do mapa já vistos: guardados à parte, valem entre versões.
 const CACHE_MAPA = 'viagem-eua-mapa';
@@ -79,11 +79,11 @@ self.addEventListener('fetch', evento => {
   const url = new URL(pedido.url);
 
   // Ruas do mapa: usa o que já está guardado; senão busca e guarda.
-  if (url.hostname.endsWith('basemaps.cartocdn.com')) {
+  if (url.hostname === 'tile.openstreetmap.org' || url.hostname === 'server.arcgisonline.com') {
     evento.respondWith(
       caches.open(CACHE_MAPA).then(cache =>
         cache.match(pedido).then(guardada => guardada || fetch(pedido).then(resposta => {
-          if (resposta.ok) {
+          if (resposta.ok || resposta.type === 'opaque') {
             cache.put(pedido, resposta.clone());
             cache.keys().then(chaves => {
               if (chaves.length > LIMITE_MAPA) chaves.slice(0, chaves.length - LIMITE_MAPA).forEach(k => cache.delete(k));

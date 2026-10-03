@@ -3,19 +3,38 @@
 // aconteceram, para reconstruir o trajeto. Tocar no marco abre a
 // despesa completa (pedido do usuário, 03/10/2026, como no AppSheet).
 //
-// Mapa: Leaflet (guardado no próprio app) com o desenho das ruas do
-// OpenStreetMap/CARTO. As ruas precisam de internet; o que já foi visto
-// fica guardado no iPhone. Os marcos vêm da planilha e funcionam sem sinal.
+// Mapa: Leaflet (guardado no próprio app). Ruas do OpenStreetMap e imagem
+// de satélite da Esri, ambos sem chave de acesso. (A 1.5.0 usava a CARTO,
+// que passou a exigir chave: o mapa aparecia em branco.) As ruas precisam
+// de internet; o que já foi visto fica guardado no iPhone. Os marcos vêm
+// da planilha e funcionam sem sinal. Como no app da viagem SC, o mapa
+// aparece mesmo sem despesas, como referência, com o botão "onde estou".
 
 import { visao } from '../dados.js';
 import { cabecalho, renderizar } from '../ui.js';
 import { icone, iconeCategoria, corCategoria } from '../icones.js';
-import { esc, moeda, dia, diaSemana, hora, dataCurta } from '../util.js';
+import { esc, moeda, dia, diaSemana, hora, dataCurta, obterLocalizacao, ultimoErroLocalizacao } from '../util.js';
+import { avisar } from '../ui.js';
 import { refBRL } from '../calculos.js';
 import { despesasValidas } from '../calculos.js';
 import { abrirDetalheDespesa } from './detalhe.js';
 
 let diaSel = '';          // '' = toda a viagem
+let camada = 'mapa';      // mapa | satelite
+
+const CAMADAS = {
+  mapa: {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    opcoes: { maxZoom: 19, attribution: '© colaboradores do OpenStreetMap' }
+  },
+  satelite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    opcoes: { maxZoom: 19, attribution: 'Imagens © Esri' }
+  }
+};
+
+// Sem despesas com local: Nova York (destino da viagem) como referência.
+const CENTRO_PADRAO = [40.7128, -74.006];
 let mapa = null;          // instância atual do Leaflet
 let carregando = null;    // promessa de carregar o Leaflet
 
@@ -78,13 +97,18 @@ export const telaMapa = {
           '</div>'
         : '') +
       '<section class="cartao mapa-cartao">' +
-        (pontos.length
-          ? '<div id="mapa" class="mapa" aria-label="Mapa com as despesas"></div>' +
-            '<div id="mapa-previa" class="mapa-previa" hidden></div>'
-          : '<div class="mapa mapa-vazio">' + icone('pin', 28, 1.8) +
-            '<p>Nenhuma despesa com local ainda.</p><p class="suave">Ao lançar uma despesa, toque em <strong>Registrar local</strong>.</p></div>') +
+        '<div class="mapa-caixa">' +
+          '<div id="mapa" class="mapa" aria-label="Mapa com as despesas"></div>' +
+          '<div class="mapa-camadas" role="group" aria-label="Tipo de mapa">' +
+            '<button type="button" class="' + (camada === 'mapa' ? 'ativo' : '') + '" data-camada="mapa">Mapa</button>' +
+            '<button type="button" class="' + (camada === 'satelite' ? 'ativo' : '') + '" data-camada="satelite">Satélite</button>' +
+          '</div>' +
+          '<button type="button" class="mapa-onde" data-onde aria-label="Mostrar onde estou">' + icone('pin', 20, 2.2) + '</button>' +
+        '</div>' +
+        (pontos.length ? '<div id="mapa-previa" class="mapa-previa" hidden></div>' : '') +
       '</section>' +
-      '<p class="nota-pequena mapa-nota">' + todos.length + ' de ' + total + (total === 1 ? ' despesa tem' : ' despesas têm') + ' local registrado. Toque num marco para ver o gasto; toque no resumo para abrir tudo.</p>' +
+      (!todos.length ? '<p class="nota-pequena mapa-nota">Nenhuma despesa com local ainda. Ao lançar uma despesa, o local é registrado e ela aparece aqui.</p>' : '') +
+      (todos.length ? '<p class="nota-pequena mapa-nota">' + todos.length + ' de ' + total + (total === 1 ? ' despesa tem' : ' despesas têm') + ' local registrado. Toque num marco para ver o gasto; toque no resumo para abrir tudo.</p>' : '') +
       (pontos.length
         ? '<h2 class="secao-titulo">' + (diaSel ? esc(diaSemana(diaSel)) : 'Trajeto') + ' · ' + pontos.length + (pontos.length === 1 ? ' parada' : ' paradas') + '</h2>' +
           '<ul class="lista">' + pontos.map((p, i) =>
@@ -105,7 +129,10 @@ export const telaMapa = {
       const p = ev.target.closest('[data-ponto]');
       if (p) { focar(p.getAttribute('data-ponto')); return; }
       const prev = ev.target.closest('[data-abrir]');
-      if (prev) abrirDetalheDespesa(prev.getAttribute('data-abrir'));
+      if (prev) { abrirDetalheDespesa(prev.getAttribute('data-abrir')); return; }
+      const cam = ev.target.closest('[data-camada]');
+      if (cam) { trocarCamada(cam.getAttribute('data-camada')); return; }
+      if (ev.target.closest('[data-onde]')) mostrarOndeEstou();
     });
 
     const alvo = raiz.querySelector('#mapa');
@@ -121,12 +148,7 @@ export const telaMapa = {
 
       mapa = L.map(alvo, { zoomControl: true, attributionControl: true, tap: true });
       mapa.attributionControl.setPrefix(false);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 19,
-        crossOrigin: true,
-        attribution: '© OpenStreetMap · © CARTO'
-      }).addTo(mapa);
+      aplicarCamada(L);
 
       // Trajeto: linha ligando os marcos na ordem das despesas.
       if (pontos.length > 1) {
@@ -147,9 +169,15 @@ export const telaMapa = {
         marcadores.set(p.d.id, m);
       });
 
-      const limites = L.latLngBounds(pontos.map(p => p.c));
-      if (pontos.length === 1) mapa.setView(pontos[0].c, 16);
-      else mapa.fitBounds(limites, { padding: [36, 36], maxZoom: 16 });
+      if (!pontos.length) {
+        // Só referência: abre em Nova York e, se o iPhone permitir, vai para onde você está.
+        mapa.setView(CENTRO_PADRAO, 12);
+        mostrarOndeEstou(true);
+      } else if (pontos.length === 1) {
+        mapa.setView(pontos[0].c, 16);
+      } else {
+        mapa.fitBounds(L.latLngBounds(pontos.map(p => p.c)), { padding: [36, 36], maxZoom: 16 });
+      }
 
       if (params.id) focar(params.id);
     }).catch(erro => {
@@ -160,10 +188,58 @@ export const telaMapa = {
 
   sair() {
     if (mapa) { mapa.remove(); mapa = null; }
+    camadaAtual = null;
+    marcoOndeEstou = null;
   }
 };
 
 let marcadores = new Map();
+let camadaAtual = null;
+let marcoOndeEstou = null;
+
+/**
+ * Põe a camada escolhida. Primeiro tenta com permissão de cópia (permite
+ * guardar no iPhone); se o servidor recusar, tenta do jeito simples.
+ */
+function aplicarCamada(L, simples = false) {
+  if (!mapa) return;
+  if (camadaAtual) mapa.removeLayer(camadaAtual);
+  const c = CAMADAS[camada];
+  const nova = L.tileLayer(c.url, { ...c.opcoes, crossOrigin: simples ? undefined : 'anonymous' });
+  let carregou = false;
+  let erros = 0;
+  nova.on('tileload', () => { carregou = true; });
+  nova.on('tileerror', () => {
+    erros++;
+    if (!simples && !carregou && erros >= 3 && camadaAtual === nova) aplicarCamada(L, true);
+  });
+  nova.addTo(mapa);
+  camadaAtual = nova;
+}
+
+function trocarCamada(nome) {
+  if (!CAMADAS[nome] || nome === camada) return;
+  camada = nome;
+  document.querySelectorAll('[data-camada]').forEach(b => b.classList.toggle('ativo', b.getAttribute('data-camada') === nome));
+  if (window.L) aplicarCamada(window.L);
+}
+
+/** Ponto azul "você está aqui", como no mapa do iPhone. */
+async function mostrarOndeEstou(silencioso = false) {
+  const botao = document.querySelector('[data-onde]');
+  if (botao) botao.classList.add('buscando');
+  const pos = await obterLocalizacao(silencioso ? 8000 : 15000, !silencioso);
+  if (botao) botao.classList.remove('buscando');
+  const c = coordenadas(pos);
+  if (!c || !mapa || !window.L) {
+    if (!silencioso && ultimoErroLocalizacao) avisar(ultimoErroLocalizacao, 'erro');
+    return;
+  }
+  if (marcoOndeEstou) mapa.removeLayer(marcoOndeEstou);
+  marcoOndeEstou = window.L.circleMarker(c, { radius: 8, color: '#FFFFFF', weight: 3, fillColor: '#1A73E8', fillOpacity: 1 }).addTo(mapa);
+  if (silencioso && marcadores.size) return;
+  mapa.setView(c, Math.max(mapa.getZoom(), 15), { animate: true });
+}
 
 /** Centraliza no marco e mostra o resumo do gasto embaixo do mapa. */
 function focar(id) {

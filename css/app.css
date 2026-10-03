@@ -1052,3 +1052,17 @@ body::after {
 .previa-abrir { display: inline-flex; align-items: center; gap: 2px; margin-top: 2px; font-size: 12px; font-weight: 800; color: var(--acento); }
 .pino-ativo .pino { transform: rotate(-45deg) scale(1.25); box-shadow: 0 0 0 4px rgba(31, 79, 216, 0.35), 0 3px 8px rgba(23, 35, 79, 0.35); }
 .pino-ativo { z-index: 1000 !important; }
+
+/* 1.5.4: mapa sempre visível, Mapa/Satélite e "onde estou" */
+.mapa-caixa { position: relative; }
+.mapa-camadas {
+  position: absolute; top: 10px; right: 10px; z-index: 500; display: flex; padding: 3px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94); box-shadow: 0 1px 4px rgba(23, 35, 79, 0.25);
+}
+.mapa-camadas button { min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--suave); }
+.mapa-camadas button.ativo { background: var(--acento); color: #FFFFFF; }
+.mapa-onde {
+  position: absolute; right: 10px; bottom: 28px; z-index: 500; width: 44px; height: 44px; border: none; border-radius: 50%;
+  background: #FFFFFF; color: var(--acento); box-shadow: 0 2px 8px rgba(23, 35, 79, 0.3); display: flex; align-items: center; justify-content: center;
+}
+.mapa-onde.buscando svg { animation: pulsar 1.2s ease-in-out infinite; }

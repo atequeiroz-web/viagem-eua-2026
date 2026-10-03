@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.5.4', '03/10/2026', [
+    'Mapa com ruas do OpenStreetMap e opção Satélite, sem chave de acesso (antes aparecia "API KEY REQUIRED").',
+    'O mapa aparece mesmo sem despesas, como referência, com o botão que mostra onde você está.'
+  ]],
   ['1.5.3', '03/10/2026', [
     'Mapa: tocar no marco mostra embaixo do mapa as coordenadas e o resumo do gasto; tocar no resumo abre a despesa completa.'
   ]],
@@ -148,7 +152,7 @@ export const telaSobre = {
       '<section class="cartao sobre-texto">' +
         '<p><span>Fonte Plus Jakarta Sans © 2020 The Plus Jakarta Sans Project Authors, sob a licença SIL Open Font License 1.1.</span></p>' +
         '<p><span>Cotações: Banco Central do Brasil (PTAX e SGS).</span></p>' +
-        '<p><span>Mapa: Leaflet (licença BSD-2); desenho das ruas © colaboradores do OpenStreetMap e © CARTO.</span></p>' +
+        '<p><span>Mapa: Leaflet (licença BSD-2); ruas © colaboradores do OpenStreetMap; imagens de satélite © Esri.</span></p>' +
       '</section>';
   },
 
