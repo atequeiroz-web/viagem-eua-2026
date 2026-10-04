@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.7.2', '04/10/2026', [
+    'Com o app aberto, a planilha é lida de 5 em 5 minutos (antes, a cada minuto), para poupar bateria. Para ler na hora: tocar em "Em dia" e em "Atualizar agora".',
+    'A faixa do relógio e da bateria ficou sólida: o título não aparece mais por baixo dela.'
+  ]],
   ['1.7.1', '04/10/2026', [
     'Dívida em dólar mostra quanto vale hoje em reais (na conta e no pagamento), pela cotação oficial mais recente.',
     'Aviso de ponte desatualizada indica a versão certa (1.2.1 ou mais nova).'

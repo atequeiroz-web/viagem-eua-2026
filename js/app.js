@@ -175,15 +175,24 @@ function registrarServiceWorker() {
   });
 }
 
+/*
+ * 1.7.2 (decisão do usuário, 04/10/2026, por causa da bateria):
+ *  - com o app aberto, lê a planilha de 5 em 5 minutos (antes: a cada minuto);
+ *  - ao voltar para o app (abrir de novo), lê se passou mais de 50 s;
+ *  - lançamento na fila é enviado no minuto seguinte, sem esperar os 5 minutos;
+ *  - para ler na hora: tocar em "Em dia" e em "Atualizar agora".
+ */
+const INTERVALO_LEITURA = 5 * 60 * 1000;
+
 function sincronizarDeTempoEmTempo() {
-  const talvez = () => {
+  const talvez = limite => {
     if (!configurado() || document.visibilityState !== 'visible') return;
     const ultima = estado.ultimaSync ? new Date(estado.ultimaSync).getTime() : 0;
-    if (Date.now() - ultima > 50000 || estado.fila.some(o => o.estado !== 'recusada')) sincronizar();
+    if (Date.now() - ultima > limite || estado.fila.some(o => o.estado !== 'recusada')) sincronizar();
   };
 
-  document.addEventListener('visibilitychange', talvez);
-  setInterval(talvez, 60 * 1000);
+  document.addEventListener('visibilitychange', () => talvez(50000));
+  setInterval(() => talvez(INTERVALO_LEITURA - 10000), 60 * 1000);
 }
 
 async function comecar() {

@@ -1043,8 +1043,8 @@ button.link-forte { border: none; background: none; padding: 0; font: inherit; c
 .gps-coord { font-size: 11px; font-weight: 600; opacity: 0.85; word-break: break-all; }
 body::after {
   content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); z-index: 40; pointer-events: none;
-  background: rgba(238, 241, 246, 0.86);
-  -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
+  /* 1.7.2: faixa sólida; a translúcida deixava o título aparecer sob o relógio no iPhone */
+  background: #EEF1F6;
 }
 
 /* 1.5.3: resumo do gasto embaixo do mapa (como no app da viagem SC) */
