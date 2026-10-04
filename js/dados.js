@@ -47,12 +47,35 @@ export async function iniciar(versao = '') {
     db.registrarDiario('abriu ' + versao + ': banco indisponível (' + (erro && (erro.name || erro.message)) + ')');
   }
 
+  // 1.7.3: sem a cópia da planilha no banco? Usa a reserva (abre até sem sinal).
+  let notaReserva = '';
+  if (!estado.snapshot) {
+    const copia = db.copiaLer();
+    if (copia) {
+      estado.snapshot = copia;
+      notaReserva += ', cópia da planilha restaurada da reserva';
+      if (bancoOk) { try { await db.kvGravar('snapshot', copia); } catch (e) { /* segue com a reserva */ } }
+    }
+  }
+
+  // 1.7.3: lançamentos que estão na reserva mas não no banco voltam para a fila.
+  const reserva = db.filaReservaLer().filter(r => !estado.fila.some(o => o.opId === r.opId));
+  if (reserva.length) {
+    for (const op of reserva) {
+      estado.fila.push(op);
+      if (bancoOk) { try { await db.filaGravar(op); } catch (e) { /* fica só na memória e na reserva */ } }
+    }
+    estado.fila.sort((a, b) => a.seq - b.seq);
+    const semFoto = reserva.filter(o => o.semFotoNaReserva).length;
+    notaReserva += ', ' + reserva.length + ' lançamento(s) restaurado(s) da reserva' + (semFoto ? ' (' + semFoto + ' sem a foto)' : '');
+  }
+
   // Sem usuário/chave no banco? Usa a cópia de segurança, se houver.
   const backup = db.backupLer();
   if ((!estado.usuario || !estado.chave) && backup) {
     estado.usuario = backup.usuario;
     estado.chave = backup.chave;
-    db.registrarDiario('abriu ' + versao + ': acesso restaurado da cópia de segurança' + (estado.snapshot ? '' : ' (planilha será baixada de novo)'));
+    db.registrarDiario('abriu ' + versao + ': acesso restaurado da cópia de segurança' + (estado.snapshot ? '' : ' (planilha será baixada de novo)') + notaReserva);
     if (bancoOk) {
       try {
         await db.kvGravar('usuario', estado.usuario);
@@ -61,7 +84,7 @@ export async function iniciar(versao = '') {
     }
   } else if (estado.usuario && estado.chave) {
     if (!backup) db.backupGravar(estado.usuario, estado.chave);
-    db.registrarDiario('abriu ' + versao + ': ok' + (estado.snapshot ? '' : ' (sem cópia da planilha)') + (estado.fila.length ? ', ' + estado.fila.length + ' na fila' : ''));
+    db.registrarDiario('abriu ' + versao + ': ok' + (estado.snapshot ? '' : ' (sem cópia da planilha)') + (estado.fila.length ? ', ' + estado.fila.length + ' na fila' : '') + notaReserva);
   } else {
     db.registrarDiario('abriu ' + versao + ': sem acesso guardado (pede a chave)');
   }
@@ -161,8 +184,14 @@ export async function desconectar() {
 let snapshotGuardadoNestaAbertura = false;
 
 async function guardarSnapshot(snapshot) {
+  // 1.7.3: uma resposta sem a cópia nunca apaga a que o iPhone já tem.
+  if (!snapshot || typeof snapshot !== 'object') {
+    db.registrarDiario('resposta da ponte veio sem a cópia da planilha (ignorada)');
+    return;
+  }
   estado.snapshot = snapshot;
   estado.ultimaSync = new Date().toISOString();
+  const reservaOk = db.copiaGravar(snapshot);
   try {
     await db.kvGravar('snapshot', snapshot);
     await db.kvGravar('ultimaSync', estado.ultimaSync);
@@ -173,8 +202,8 @@ async function guardarSnapshot(snapshot) {
       db.registrarDiario('cópia da planilha guardada (' + Math.round(JSON.stringify(snapshot).length / 1024) + ' KB)' + (confere ? '' : ' — MAS NÃO FOI ENCONTRADA AO CONFERIR'));
     }
   } catch (erro) {
-    db.registrarDiario('FALHA ao guardar a cópia da planilha: ' + (erro && (erro.name + ' ' + erro.message)));
-    throw erro;
+    db.registrarDiario('FALHA ao guardar a cópia da planilha: ' + (erro && (erro.name + ' ' + erro.message)) + (reservaOk ? ' (a reserva foi guardada)' : ''));
+    if (!reservaOk) throw erro;
   }
 }
 

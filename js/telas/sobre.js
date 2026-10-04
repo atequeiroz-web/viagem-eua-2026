@@ -12,6 +12,11 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.7.3', '04/10/2026', [
+    'Se o Google falhar por um instante (erro 404 ou sem resposta), o app tenta de novo sozinho antes de avisar.',
+    'Segunda cópia dos dados e dos lançamentos ainda não enviados: se o iPhone perder a primeira, o app abre pela reserva, mesmo sem sinal.',
+    'Splash de 2 segundos.'
+  ]],
   ['1.7.2', '04/10/2026', [
     'Com o app aberto, a planilha é lida de 5 em 5 minutos (antes, a cada minuto), para poupar bateria. Para ler na hora: tocar em "Em dia" e em "Atualizar agora".',
     'A faixa do relógio e da bateria ficou sólida: o título não aparece mais por baixo dela.'

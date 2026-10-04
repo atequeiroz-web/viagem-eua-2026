@@ -107,14 +107,63 @@ export async function filaListar() {
   return lista.sort((a, b) => a.seq - b.seq);
 }
 
-export const filaGravar = op => executar('fila', 'readwrite', s => s.put(op));
-export const filaRemover = opId => executar('fila', 'readwrite', s => s.delete(opId));
+/*
+ * 1.7.3: RESERVA no localStorage (a mesma gaveta que guarda a chave).
+ * Se o iPhone abrir o app sem o banco (ou sem conseguir lê-lo), a cópia
+ * da planilha e os lançamentos ainda não enviados voltam daqui, mesmo
+ * sem sinal. As fotos não vão para a reserva (são pesadas): um
+ * lançamento restaurado daqui sobe sem a foto.
+ */
+const CHAVE_COPIA = 'viagem-eua-2026:copia-planilha';
+const CHAVE_FILA = 'viagem-eua-2026:fila-reserva';
+
+export function copiaGravar(snapshot) {
+  try { localStorage.setItem(CHAVE_COPIA, JSON.stringify(snapshot)); return true; } catch (e) { return false; }
+}
+
+export function copiaLer() {
+  try { const t = localStorage.getItem(CHAVE_COPIA); return t ? JSON.parse(t) : null; } catch (e) { return null; }
+}
+
+function reservaLer() {
+  try { return JSON.parse(localStorage.getItem(CHAVE_FILA) || '{}') || {}; } catch (e) { return {}; }
+}
+
+function reservaGravar(mapa) {
+  try { localStorage.setItem(CHAVE_FILA, JSON.stringify(mapa)); } catch (e) { /* sem espaço: segue só com o banco */ }
+}
+
+function semFoto(op) {
+  if (!op || !op.dados || !op.dados.foto) return op;
+  const { foto, ...resto } = op.dados;
+  return { ...op, dados: resto, semFotoNaReserva: true };
+}
+
+/** Lançamentos guardados na reserva (sem fotos), em ordem. */
+export function filaReservaLer() {
+  return Object.values(reservaLer()).sort((a, b) => a.seq - b.seq);
+}
+
+export async function filaGravar(op) {
+  const mapa = reservaLer();
+  mapa[op.opId] = semFoto(op);
+  reservaGravar(mapa);
+  return executar('fila', 'readwrite', s => s.put(op));
+}
+
+export async function filaRemover(opId) {
+  const mapa = reservaLer();
+  delete mapa[opId];
+  reservaGravar(mapa);
+  return executar('fila', 'readwrite', s => s.delete(opId));
+}
 
 export const fotoLer = chave => executar('fotos', 'readonly', s => s.get(chave));
 export const fotoGravar = (chave, dados) => executar('fotos', 'readwrite', s => s.put(dados, chave));
 
 export async function apagarTudo() {
   backupApagar();
+  try { localStorage.removeItem(CHAVE_COPIA); localStorage.removeItem(CHAVE_FILA); } catch (e) { /* nada */ }
   const db = await abrir();
   db.close();
   promessa = null;

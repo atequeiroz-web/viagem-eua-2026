@@ -67,6 +67,7 @@ function protegida(tela) {
             return '';
           }
           if (!estado.snapshot) {
+            if (!esperandoPlanilha) registrarDiario('tela "Baixando": sem cópia da planilha' + (estado.ultimoErro ? ' — ' + estado.ultimoErro : ''));
             esperandoPlanilha = true;
             return telaBaixando();
           }
@@ -214,7 +215,7 @@ async function comecar() {
 
 /*
  * Splash: a imagem da viagem aparece ao abrir o app do zero e some
- * sozinha depois de ~1,6 s (ou antes, com um toque).
+ * sozinha depois de 2 s (ou antes, com um toque). 1.7.3: 2 s, pedido do usuário.
  */
 const inicioSplash = Date.now();
 function esconderSplash() {
@@ -231,5 +232,5 @@ function esconderSplash() {
 })();
 
 comecar().finally(() => {
-  setTimeout(esconderSplash, Math.max(0, 1600 - (Date.now() - inicioSplash)));
+  setTimeout(esconderSplash, Math.max(0, 2000 - (Date.now() - inicioSplash)));
 });
