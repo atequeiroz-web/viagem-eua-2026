@@ -113,6 +113,17 @@ export function paraCampoDataHora(valor) {
   return dia(d) + 'T' + doisDigitos(d.getHours()) + ':' + doisDigitos(d.getMinutes());
 }
 
+/**
+ * Dia de uma cotação do Banco Central (dd/mm), lido no horário de Brasília.
+ * A planilha guarda a data à meia-noite do Brasil; lida no fuso do iPhone
+ * (Manaus, Nova York), cairia no dia anterior.
+ */
+export function dataCotacao(valor) {
+  const d = paraData(valor);
+  if (!d) return '';
+  return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
+}
+
 export function dataCurta(valor) {
   const d = paraData(valor);
   if (!d) return '';

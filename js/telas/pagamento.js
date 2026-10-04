@@ -10,7 +10,7 @@ import { visao, enfileirar, descartarOperacao } from '../dados.js';
 import { abrirFolha, confirmar, avisar } from '../ui.js';
 import { icone, iconeCategoria } from '../icones.js';
 import { esc, moeda, dataCurta, simboloMoeda, numeroBR } from '../util.js';
-import { efeitoDoPagamento, converter, ponteMinima } from '../calculos.js';
+import { efeitoDoPagamento, converter, ponteMinima, emReaisHoje } from '../calculos.js';
 import { carregarFoto, abrirDetalheDespesa } from './detalhe.js';
 
 /** Situação do pagamento, do ponto de vista de quem olha. */
@@ -156,10 +156,12 @@ export function abrirPagamento(id) {
     : '';
 
   // 5) Como a dívida está hoje.
+  const reaisHoje = ef.saldoHoje > 0.004 ? emReaisHoje(ef.saldoHoje, ef.moedaDivida, v.cotacoes) : null;
   const blocoHoje = sit.pronto && ef.temGrupo
     ? '<div class="lig-hoje' + (ef.saldoHoje > 0.004 ? '' : ' lig-hoje-ok') + '">' +
         '<span>Dívida de ' + esc(nomeDivida(a)) + ' hoje</span>' +
-        '<strong>' + (ef.saldoHoje > 0.004 ? 'falta ' + esc(moeda(ef.saldoHoje, ef.moedaDivida)) : icone('check', 16, 2.6) + ' quitada') + '</strong>' +
+        '<span class="lig-hoje-valor"><strong>' + (ef.saldoHoje > 0.004 ? 'falta ' + esc(moeda(ef.saldoHoje, ef.moedaDivida)) : icone('check', 16, 2.6) + ' quitada') + '</strong>' +
+        (reaisHoje ? '<small>≈ ' + esc(moeda(reaisHoje.brl)) + ' hoje</small>' : '') + '</span>' +
       '</div>'
     : '';
 
@@ -195,7 +197,7 @@ export function abrirPagamento(id) {
         }
         if (ev.target.closest('[data-excluir-pag]')) {
           if (!ponteMinima(visao(), 1, 2)) {
-            avisar('Para excluir pagamentos, a ponte na planilha precisa ser atualizada (versão 1.2.0).', 'erro');
+            avisar('Para excluir pagamentos, a ponte na planilha precisa ser atualizada (versão 1.2.1 ou mais nova).', 'erro');
             return;
           }
           const ok = await confirmar({

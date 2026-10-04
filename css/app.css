@@ -783,6 +783,7 @@ input[type="date"].entrada, input[type="datetime-local"].entrada { display: flex
 .lig-linhas { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 14.5px; }
 .lig-linhas div { display: flex; justify-content: space-between; gap: 12px; }
 .lig-linhas div span:last-child { text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.lig-linhas div span:first-child { white-space: nowrap; }
 .lig-elo { display: flex; align-items: center; gap: 10px; margin: 8px 6px; font-size: 14px; color: var(--suave); line-height: 1.4; }
 .lig-elo svg { flex-shrink: 0; color: var(--acento); }
 .lig-elo strong { color: var(--texto); white-space: nowrap; }
@@ -790,6 +791,9 @@ input[type="date"].entrada, input[type="datetime-local"].entrada { display: flex
 .lig-hoje { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; padding: 14px 16px; border-radius: 16px; background: var(--alerta-fundo); color: var(--alerta-texto); font-size: 14.5px; }
 .lig-hoje strong { display: inline-flex; align-items: center; gap: 4px; font-size: 17px; font-weight: 800; white-space: nowrap; }
 .lig-hoje-ok { background: var(--ok-fundo); color: var(--ok); }
+.lig-hoje-valor { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.lig-hoje-valor small { font-size: 12.5px; font-weight: 700; opacity: .85; white-space: nowrap; }
+.conta-cotacao { margin-top: 8px; }
 
 .det-pag { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 8px 10px; border: none; border-radius: 10px; background: var(--acento-claro); color: #102A73; font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; }
 .det-pag > span { flex: 1; }

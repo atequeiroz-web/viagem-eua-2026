@@ -9,6 +9,18 @@ export function cotacaoBRL(moeda, cotacoes) {
   return c && num(c.cotacao) > 0 ? num(c.cotacao) : 0;
 }
 
+/**
+ * Quanto um saldo em moeda estrangeira vale hoje em reais, pela cotação
+ * oficial mais recente que a planilha baixou do Banco Central. A dívida
+ * continua na moeda original; isto é só para saber quanto se pagaria hoje.
+ */
+export function emReaisHoje(valor, moedaOrigem, cotacoes) {
+  if (moedaOrigem === 'BRL' || !(num(valor) > 0)) return null;
+  const c = cotacoes && cotacoes[moedaOrigem];
+  if (!c || !(num(c.cotacao) > 0)) return null;
+  return { brl: arred2(num(valor) * num(c.cotacao)), cotacao: num(c.cotacao), data: c.data || '' };
+}
+
 export function estimarBRL(valor, moeda, cotacoes) {
   return arred2(num(valor) * cotacaoBRL(moeda, cotacoes));
 }

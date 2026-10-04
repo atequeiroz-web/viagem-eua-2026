@@ -9,9 +9,9 @@
 import { estado, visao } from '../dados.js';
 import { cabecalho, segmento, ligarSegmento, vazio, renderizar } from '../ui.js';
 import { icone, iconeCategoria } from '../icones.js';
-import { esc, moeda, num, arred2, dataCurta, mesmaPessoa } from '../util.js';
+import { esc, moeda, num, arred2, dataCurta, dataCotacao, numeroBR, simboloMoeda, mesmaPessoa } from '../util.js';
 import {
-  gruposAbertos, gruposLiquidados, obrigacoesDoGrupo, origemDaObrigacao, posicaoDoUsuario
+  gruposAbertos, gruposLiquidados, obrigacoesDoGrupo, origemDaObrigacao, posicaoDoUsuario, emReaisHoje
 } from '../calculos.js';
 import { abrirDetalheDespesa } from './detalhe.js';
 import { abrirPagamento, htmlLigacaoCurta, situacaoPagamento } from './pagamento.js';
@@ -141,14 +141,19 @@ export const telaConta = {
     const obrigs = obrigacoesDoGrupo(v, g);
     const pags = pagamentosDoGrupo(v, obrigs);
     const pct = num(g.originado) > 0 ? Math.round(num(g.liquidado) / num(g.originado) * 100) : 0;
+    const hoje = aberta ? emReaisHoje(g.saldo, g.moeda, v.cotacoes) : null;
 
     return cabecalho({ titulo: g.devedor + ' deve a ' + g.credor, sobre: 'CONTA', voltarPara: '/contas' }) +
       '<section class="cartao conta">' +
         '<div class="rotulo">' + (aberta ? 'FALTA PAGAR' : 'QUITADA') + '</div>' +
         '<div class="conta-valor">' + esc(moeda(aberta ? g.saldo : g.originado, g.moeda)) + '</div>' +
         '<div class="conta-prog"><span>Pago ' + esc(moeda(g.liquidado, g.moeda)) + ' de ' + esc(moeda(g.originado, g.moeda)) + '</span>' +
-          (num(g.refSaldo) > 0 && g.moeda !== 'BRL' && aberta ? '<span>≈ ' + esc(moeda(g.refSaldo)) + '</span>' : '') + '</div>' +
+          (hoje ? '<span class="nw">≈ ' + esc(moeda(hoje.brl)) + ' hoje</span>' : '') + '</div>' +
         '<div class="conta-barra"><div style="width:' + Math.min(100, pct) + '%"></div></div>' +
+        (hoje
+          ? '<p class="nota-pequena conta-cotacao">Cotação oficial de ' + esc(dataCotacao(hoje.data)) + ': <span class="nw">' +
+            esc(simboloMoeda(g.moeda)) + ' 1 = R$ ' + esc(numeroBR(hoje.cotacao, 4)) + '</span>. No pagamento, vale a do dia em que for pago.</p>'
+          : '') +
         (aberta ? '<a href="#/acerto/' + encodeURIComponent(chaveDoGrupo(g)) + '" class="botao botao-primario botao-grande conta-pagar">' + icone('maos', 20, 2) + ' Registrar pagamento</a>' : '') +
       '</section>' +
 
