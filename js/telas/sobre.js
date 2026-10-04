@@ -12,6 +12,9 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.6.0', '03/10/2026', [
+    'Splash: a imagem da viagem aparece ao abrir o app; um toque pula.'
+  ]],
   ['1.5.4', '03/10/2026', [
     'Mapa com ruas do OpenStreetMap e opção Satélite, sem chave de acesso (antes aparecia "API KEY REQUIRED").',
     'O mapa aparece mesmo sem despesas, como referência, com o botão que mostra onde você está.'

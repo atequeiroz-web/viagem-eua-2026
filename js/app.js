@@ -203,4 +203,24 @@ async function comecar() {
   if (configurado()) sincronizar();
 }
 
-comecar();
+/*
+ * Splash: a imagem da viagem aparece ao abrir o app do zero e some
+ * sozinha depois de ~1,6 s (ou antes, com um toque).
+ */
+const inicioSplash = Date.now();
+function esconderSplash() {
+  const el = document.getElementById('splash');
+  if (!el || el.classList.contains('sumindo')) return;
+  el.classList.add('sumindo');
+  setTimeout(() => el.remove(), 450);
+}
+(function prepararSplash() {
+  const el = document.getElementById('splash');
+  if (!el) return;
+  el.addEventListener('click', esconderSplash);
+  setTimeout(esconderSplash, 4000); // nunca fica presa
+})();
+
+comecar().finally(() => {
+  setTimeout(esconderSplash, Math.max(0, 1600 - (Date.now() - inicioSplash)));
+});

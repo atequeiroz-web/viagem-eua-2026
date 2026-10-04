@@ -1,7 +1,7 @@
 // Service worker: guarda o app no iPhone para abrir sem sinal.
 // Ao publicar uma versão nova, aumente VERSAO (igual a js/config.js).
 
-const VERSAO = '1.5.4';
+const VERSAO = '1.6.0';
 const CACHE = 'viagem-eua-' + VERSAO;
 // Pedaços do mapa já vistos: guardados à parte, valem entre versões.
 const CACHE_MAPA = 'viagem-eua-mapa';
@@ -45,7 +45,8 @@ const ARQUIVOS = [
   'icones/icone-192.png',
   'icones/icone-512.png',
   'icones/icone-maskable-512.png',
-  'icones/apple-touch-icon.png'
+  'icones/apple-touch-icon.png',
+  'icones/splash.jpg'
 ];
 
 self.addEventListener('install', evento => {
