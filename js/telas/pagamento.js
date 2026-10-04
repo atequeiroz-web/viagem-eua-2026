@@ -6,11 +6,11 @@
 // antiga primeiro. Este card mostra essa ligação:
 //   pagou R$ → virou US$ → quais dívidas abateu → quanto falta.
 
-import { visao } from '../dados.js';
-import { abrirFolha } from '../ui.js';
+import { visao, enfileirar, descartarOperacao } from '../dados.js';
+import { abrirFolha, confirmar, avisar } from '../ui.js';
 import { icone, iconeCategoria } from '../icones.js';
 import { esc, moeda, dataCurta, simboloMoeda, numeroBR } from '../util.js';
-import { efeitoDoPagamento, converter } from '../calculos.js';
+import { efeitoDoPagamento, converter, ponteMinima } from '../calculos.js';
 import { carregarFoto, abrirDetalheDespesa } from './detalhe.js';
 
 /** Situação do pagamento, do ponto de vista de quem olha. */
@@ -172,6 +172,11 @@ export function abrirPagamento(id) {
         icone('atualizar', 16, 2.2, ' data-gira="1"') + ' Carregando…</span></div></div>'
       : '<p class="nota-pequena">Sem foto do comprovante.</p>') +
     (a.observacao && a.status !== 'Erro' ? '<p class="nota-pequena">Observação: ' + esc(a.observacao) + '</p>' : '') +
+    (a._fila && a._tipoOp === 'acerto.criar'
+      ? '<div class="det-acoes"><button type="button" class="botao botao-perigo-suave" data-desistir>' + icone('lixeira', 18, 2) + ' Desistir deste pagamento</button></div>'
+      : !a._fila
+        ? '<div class="det-acoes"><button type="button" class="botao botao-perigo-suave" data-excluir-pag>' + icone('lixeira', 18, 2) + ' Excluir pagamento</button></div>'
+        : '') +
     '<p class="det-id">Pagamento ' + esc(a.id) + '</p>';
 
   abrirFolha({
@@ -179,7 +184,33 @@ export function abrirPagamento(id) {
     html,
     montar: (corpo, fechar) => {
       if (a.comprovante) carregarFoto(corpo, a.comprovante);
-      corpo.addEventListener('click', ev => {
+      corpo.addEventListener('click', async ev => {
+        if (ev.target.closest('[data-desistir]')) {
+          const ok = await confirmar({ titulo: 'Desistir deste pagamento?', texto: 'Ele ainda não foi enviado à planilha e será apagado deste iPhone.', sim: 'Desistir', perigo: true });
+          if (!ok) return;
+          fechar();
+          await descartarOperacao(a._opId);
+          avisar('Pagamento descartado');
+          return;
+        }
+        if (ev.target.closest('[data-excluir-pag]')) {
+          if (!ponteMinima(visao(), 1, 2)) {
+            avisar('Para excluir pagamentos, a ponte na planilha precisa ser atualizada (versão 1.2.0).', 'erro');
+            return;
+          }
+          const ok = await confirmar({
+            titulo: 'Excluir este pagamento?',
+            texto: '<strong>' + esc(a.descricao) + '</strong> (' + esc(moeda(a.valorPago, a.moedaPagamento)) + ') será apagado da planilha. ' +
+              'As dívidas que ele abateu voltam ao valor de antes, e as dívidas que ele criou são apagadas. Fica registrado na auditoria.',
+            sim: 'Excluir',
+            perigo: true
+          });
+          if (!ok) return;
+          fechar();
+          await enfileirar('acerto.excluir', { id: a.id });
+          avisar('Exclusão do pagamento registrada');
+          return;
+        }
         const b = ev.target.closest('[data-despesa]');
         if (!b) return;
         fechar();

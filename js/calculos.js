@@ -309,8 +309,13 @@ export function ehTerceiro(v, nome) {
 
 /** A ponte instalada já sabe cadastrar (1.1.0 ou mais nova)? */
 export function ponteCadastra(v) {
+  return ponteMinima(v, 1, 1);
+}
+
+/** A ponte instalada é pelo menos a versão maior.menor? */
+export function ponteMinima(v, maior, menor) {
   const [a, b] = String(v.versaoApi || '0.0').split('.').map(Number);
-  return a > 1 || (a === 1 && b >= 1);
+  return a > maior || (a === maior && b >= menor);
 }
 
 export function pessoaPropria(v, nome) {

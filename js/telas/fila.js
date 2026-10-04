@@ -11,6 +11,7 @@ const ROTULOS = {
   'despesa.excluir': 'Exclusão de despesa',
   'acerto.criar': 'Pagamento de dívida',
   'fundo.criar': 'Compra de moeda',
+  'acerto.excluir': 'Exclusão de pagamento',
   'pessoa.criar': 'Novo pagador',
   'categoria.criar': 'Nova categoria',
   'cartao.salvar': 'Cartão',

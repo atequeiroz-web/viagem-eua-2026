@@ -95,7 +95,7 @@ export function abrirDetalheDespesa(id) {
         icone('atualizar', 16, 2.2, ' data-gira="1"') + ' Carregando…</span></div></div>'
       : '') +
     (protegido ? '<p class="nota-protegida">' + icone('escudo', 16, 2) + ' Registro protegido: o app só permite corrigir textos (descrição, local, observação).</p>' : '') +
-    (comAcerto && !protegido ? '<p class="nota-protegida">' + icone('escudo', 16, 2) + ' Já houve acerto sobre esta despesa: valor, moeda, data e pessoas não podem mais mudar.</p>' : '') +
+    (comAcerto && !protegido ? '<p class="nota-protegida">' + icone('escudo', 16, 2) + ' Já houve pagamento sobre esta despesa: valor, moeda, data e pessoas não podem mudar, e ela não pode ser excluída. Para excluir, exclua antes os pagamentos acima (toque em cada um e em "Excluir pagamento").</p>' : '') +
     (recusadaCriacao ? '' :
       '<div class="det-acoes">' +
         '<button type="button" class="botao botao-secundario" data-acao="editar">' + icone('lapis', 18, 2) + ' Editar</button>' +

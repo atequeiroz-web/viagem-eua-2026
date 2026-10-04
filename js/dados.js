@@ -527,6 +527,11 @@ export function visao() {
       });
     }
 
+    if (op.tipo === 'acerto.excluir' && op.estado !== 'recusada') {
+      v.acertos = v.acertos.filter(x => x.id !== d.id);
+      v.aplicacoes = (v.aplicacoes || []).filter(x => x.acertoId !== d.id);
+    }
+
     if (op.tipo === 'fundo.criar' && !v.fundos.some(x => x.id === d.id)) {
       v.fundos.push({ ...d, quantidade: num(d.quantidade), custoTotal: d.custoTotal === '' ? '' : num(d.custoTotal), lancadoPor: estado.usuario, ...marca });
     }

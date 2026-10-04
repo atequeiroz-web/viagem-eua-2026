@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.7.0', '03/10/2026', [
+    'Excluir pagamento: devolve as dívidas que ele tinha abatido. Com isso, lançamentos de teste podem ser apagados pelo próprio app (primeiro os pagamentos, depois a despesa).',
+    'Pagamento ainda na fila (sem sinal) pode ser desistido antes de subir.'
+  ]],
   ['1.6.0', '03/10/2026', [
     'Splash: a imagem da viagem aparece ao abrir o app; um toque pula.'
   ]],
