@@ -12,6 +12,12 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.8.0', '04/10/2026', [
+    'Nova despesa em 4 etapas, com "Continuar": quanto e o quê; quem pagou e de quem é; comprovante e local; conferir e salvar.',
+    'Sugestões por toque: as descrições e os locais já usados aparecem para tocar, sem digitar.',
+    'Editar uma despesa abre direto no "Conferir": toque na linha que quer mudar.',
+    'Enviar extrato: na tela de uma dívida, o texto pronto para mandar por WhatsApp, Mensagens ou e-mail.'
+  ]],
   ['1.7.3', '04/10/2026', [
     'Se o Google falhar por um instante (erro 404 ou sem resposta), o app tenta de novo sozinho antes de avisar.',
     'Segunda cópia dos dados e dos lançamentos ainda não enviados: se o iPhone perder a primeira, o app abre pela reserva, mesmo sem sinal.',

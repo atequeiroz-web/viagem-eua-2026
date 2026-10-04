@@ -7,7 +7,7 @@
 // abrem", 03/10/2026).
 
 import { estado, visao } from '../dados.js';
-import { cabecalho, segmento, ligarSegmento, vazio, renderizar } from '../ui.js';
+import { cabecalho, segmento, ligarSegmento, vazio, renderizar, abrirFolha, avisar } from '../ui.js';
 import { icone, iconeCategoria } from '../icones.js';
 import { esc, moeda, num, arred2, dataCurta, dataCotacao, numeroBR, simboloMoeda, mesmaPessoa } from '../util.js';
 import {
@@ -43,6 +43,83 @@ function pagamentosDoGrupo(v, obrigs) {
     .map(([id, abatido]) => ({ a: v.acertos.find(x => x.id === id), abatido }))
     .filter(x => x.a)
     .sort((x, y) => String(y.a.data).localeCompare(String(x.a.data)));
+}
+
+/* =================== Extrato para enviar (1.8.0) ===================
+   Texto simples, revisado na tela antes de enviar pelo compartilhamento
+   do próprio iPhone (WhatsApp, Mensagens, e-mail). Não usa serviço de fora. */
+
+const diaMes = d => dataCurta(d).slice(0, 5);
+
+export function textoExtrato(v, g) {
+  const obrigs = obrigacoesDoGrupo(v, g).slice().sort((a, b) => String(a.dataOrigem).localeCompare(String(b.dataOrigem)));
+  const pags = pagamentosDoGrupo(v, obrigs).slice().reverse();
+  const aberta = num(g.saldo) > 0.004;
+  const linhas = ['Extrato ' + g.devedor + ' → ' + g.credor + ' (' + dataCurta(new Date()) + ')', '', 'Dívidas:'];
+
+  obrigs.forEach(o => {
+    const origem = origemDaObrigacao(v, o);
+    linhas.push('• ' + diaMes(origem.data) + ' ' + origem.titulo + ': ' + moeda(o.valorOriginal, o.moeda));
+  });
+
+  if (pags.length) {
+    linhas.push('', 'Pagamentos:');
+    pags.forEach(({ a, abatido }) => {
+      linhas.push('• ' + diaMes(a.data) + ' ' + moeda(a.valorPago, a.moedaPagamento) +
+        (a.moedaPagamento !== g.moeda ? ' → ' + moeda(abatido, g.moeda) : ''));
+    });
+  }
+
+  linhas.push('');
+  if (aberta) {
+    const hoje = emReaisHoje(g.saldo, g.moeda, v.cotacoes);
+    linhas.push('Falta: ' + moeda(g.saldo, g.moeda) + (hoje ? ' (≈ ' + moeda(hoje.brl) + ' hoje)' : ''));
+  } else {
+    linhas.push('Quitada.');
+  }
+  return linhas.join('\n');
+}
+
+function abrirExtrato(params) {
+  const v = visao();
+  const g = grupoPelaChave(v, params && params.chave);
+  if (!g) return;
+  const texto = textoExtrato(v, g);
+  const titulo = 'Extrato ' + g.devedor + ' → ' + g.credor;
+
+  abrirFolha({
+    titulo: 'Enviar extrato',
+    html: '<p class="texto-suave">Confira o texto. Ao tocar em Enviar, o iPhone mostra onde mandar (WhatsApp, Mensagens, e-mail).</p>' +
+      '<pre class="extrato-texto" id="extrato-texto">' + esc(texto) + '</pre>' +
+      '<div class="det-acoes">' +
+        '<button type="button" class="botao botao-primario botao-grande" data-enviar>' + icone('compartilhar', 20, 2.2) + ' Enviar</button>' +
+        '<button type="button" class="botao botao-contorno botao-grande" data-copiar>Copiar o texto</button>' +
+      '</div>',
+    montar: (corpo, fechar) => {
+      const copiar = async () => {
+        try {
+          await navigator.clipboard.writeText(texto);
+          avisar('Extrato copiado. É só colar na conversa.');
+          fechar();
+        } catch (e) {
+          avisar('Não deu para copiar. Toque e segure o texto para selecionar.', 'erro');
+        }
+      };
+      corpo.querySelector('[data-copiar]').addEventListener('click', copiar);
+      corpo.querySelector('[data-enviar]').addEventListener('click', async () => {
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: titulo, text: texto });
+            fechar();
+            return;
+          } catch (e) {
+            if (e && e.name === 'AbortError') return;   // a pessoa desistiu
+          }
+        }
+        copiar();
+      });
+    }
+  });
 }
 
 /* =================== Tela principal: uma linha por conta =================== */
@@ -177,11 +254,14 @@ export const telaConta = {
             '<span>' + esc(dataCurta(a.data)) + ': ' + esc(a.recursosDe) + ' pagou <span class="nw">' + esc(moeda(a.valorPago, a.moedaPagamento)) + '</span>' +
             ' → abateu <span class="nw">' + esc(moeda(abatido, g.moeda)) + '</span></span>' + icone('direita', 16, 2.2) + '</button>'
           ).join('') + '</div>'
-        : '');
+        : '') +
+
+      '<button type="button" class="botao botao-contorno botao-grande conta-extrato" data-extrato>' + icone('compartilhar', 20, 2.2) + ' Enviar extrato</button>';
   },
 
-  montar(raiz) {
+  montar(raiz, params) {
     raiz.addEventListener('click', ev => {
+      if (ev.target.closest('[data-extrato]')) return abrirExtrato(params);
       const pag = ev.target.closest('[data-pagamento]');
       if (pag) {
         abrirPagamento(pag.getAttribute('data-pagamento'));

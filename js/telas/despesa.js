@@ -19,6 +19,16 @@ let original = null;   // dados originais (editar/corrigir)
 let opOrigem = null;   // operação recusada sendo corrigida
 let salvo = false;
 let travado = false;   // campos financeiros bloqueados
+let etapa = 1;         // 1.8.0: etapa atual do formulário (1 a 4)
+
+/*
+ * 1.8.0 (decisão do usuário, 04/10/2026): a Nova despesa em 4 etapas, com
+ * "Continuar", como o Registrar pagamento. Os campos e as regras são os
+ * mesmos de antes; muda só a forma de apresentar (um grupo por vez).
+ * Editar e corrigir abrem direto na etapa 4 (conferir).
+ */
+const NOMES_PASSOS = ['Quanto e o quê', 'Quem pagou e de quem é', 'Comprovante e local', 'Conferir e salvar'];
+const TOTAL_PASSOS = NOMES_PASSOS.length;
 
 /* ---------------- Montagem do estado ---------------- */
 
@@ -145,6 +155,139 @@ function aplicarRegrasPagador(v) {
   }
 }
 
+/* ---------------- Sugestões por toque (1.8.0) ---------------- */
+
+function maisRecentes(v) {
+  return v.despesas.slice().sort((a, b) => String(b.dataCompra || '').localeCompare(String(a.dataCompra || '')));
+}
+
+/** Descrições já usadas (mais recentes primeiro; as da categoria escolhida antes). */
+function sugestoesDescricao(v) {
+  const digitado = normalizar(f.descricao);
+  const vistos = new Map();
+  maisRecentes(v).forEach(d => {
+    const texto = String(d.descricao || '').trim();
+    const k = normalizar(texto);
+    if (texto && !vistos.has(k)) vistos.set(k, { texto, categoria: d.categoria || '' });
+  });
+  const lista = Array.from(vistos.values())
+    .filter(s => normalizar(s.texto) !== digitado && (!digitado || normalizar(s.texto).includes(digitado)));
+  if (f.categoria) lista.sort((a, b) => (b.categoria === f.categoria) - (a.categoria === f.categoria));
+  return lista.slice(0, 5);
+}
+
+/** Locais já usados (mais recentes primeiro). */
+function sugestoesLocal(v) {
+  const digitado = normalizar(f.local);
+  const vistos = new Map();
+  maisRecentes(v).forEach(d => {
+    const texto = String(d.local || '').trim();
+    const k = normalizar(texto);
+    if (texto && !vistos.has(k)) vistos.set(k, texto);
+  });
+  return Array.from(vistos.values())
+    .filter(t => normalizar(t) !== digitado && (!digitado || normalizar(t).includes(digitado)))
+    .slice(0, 5);
+}
+
+function htmlSugestoes(lista, atributo) {
+  if (!lista.length) return '';
+  return lista.map(s => {
+    const texto = typeof s === 'string' ? s : s.texto;
+    return '<button type="button" class="sug-chip" ' + atributo + '="' + esc(texto) + '">' + esc(texto) + '</button>';
+  }).join('');
+}
+
+/* ---------------- Etapas (1.8.0) ---------------- */
+
+function htmlProgresso() {
+  let pontos = '';
+  for (let i = 1; i <= TOTAL_PASSOS; i++) pontos += '<span class="' + (i < etapa ? 'feito' : i === etapa ? 'ativo' : '') + '"></span>';
+  return '<div class="etapas-pontos">' + pontos + '</div>' +
+    '<div class="etapas-nome">Etapa ' + etapa + ' de ' + TOTAL_PASSOS + ' · ' + esc(NOMES_PASSOS[etapa - 1]) + '</div>';
+}
+
+function htmlBarra() {
+  const ultimo = etapa === TOTAL_PASSOS;
+  return '<div class="barra-etapas">' +
+      (etapa > 1 ? '<button type="button" class="botao botao-contorno botao-grande barra-anterior" data-anterior>' + icone('esquerda', 20, 2.4) + ' Voltar</button>' : '') +
+      (ultimo
+        ? '<button type="submit" class="botao botao-primario botao-grande" id="salvar">' + (modo === 'nova' ? 'Salvar despesa' : 'Salvar alterações') + '</button>'
+        : '<button type="button" class="botao botao-primario botao-grande" data-continuar>Continuar</button>') +
+    '</div>' +
+    (ultimo ? '<p class="nota-salvar" id="nota-salvar">' + (navigator.onLine ? 'Vai direto para a planilha.' : 'Sem sinal: fica guardada no iPhone e sobe sozinha depois.') + '</p>' : '');
+}
+
+function formaTexto(v) {
+  if (ehTerceiro(v, f.quemPagou)) return 'dinheiro, em dólar';
+  const cartao = normalizar(f.formaPagamento).includes('cartao') && f.cartao ? ' · ' + f.cartao : '';
+  return f.formaPagamento + cartao;
+}
+
+function htmlResumo(v) {
+  const valor = lerNumero(f.valorTexto);
+  const est = f.moeda !== 'BRL' && valor > 0 ? estimarBRL(valor, f.moeda, v.cotacoes) : 0;
+  const local = (f.local.trim() || '—') + (f.gps ? ' · no mapa' : f.gpsSituacao === 'buscando' ? ' · buscando local…' : '');
+  const foto = f.foto ? 'com foto' : f.comprovante ? 'já registrado' : 'sem foto';
+  const linhas = [
+    [1, 'Valor', moeda(valor, f.moeda) + (est ? ' (≈ ' + moeda(est) + ')' : '')],
+    [1, 'O quê', (f.descricao.trim() || '—') + (f.categoria ? ' · ' + f.categoria : '')],
+    [2, 'Quem pagou', f.quemPagou + ' · ' + formaTexto(v)],
+    [2, 'De quem é', f.responsavel],
+    [3, 'Comprovante', foto],
+    [3, 'Local', local],
+    [3, 'Quando', resumoDetalhes()]
+  ];
+  return '<p class="resumo-dica">Toque numa linha para corrigir.</p>' +
+    linhas.map(([passo, rotulo, valorTexto]) =>
+      '<button type="button" class="resumo-linha" data-passo="' + passo + '"><span class="suave">' + esc(rotulo) + '</span>' +
+      '<span class="resumo-valor">' + esc(valorTexto) + '</span>' + icone('direita', 16, 2.2) + '</button>'
+    ).join('') +
+    htmlAviso();
+}
+
+/** Mostra uma etapa: só o grupo dela fica visível. */
+function irParaEtapa(n) {
+  const form = document.getElementById('form-despesa');
+  if (!form || !f) return;
+  etapa = Math.max(1, Math.min(TOTAL_PASSOS, n));
+  form.setAttribute('data-etapa', String(etapa));
+  form.querySelectorAll('[data-grupo]').forEach(g => { g.hidden = Number(g.getAttribute('data-grupo')) !== etapa; });
+  form.querySelector('#etapas-topo').innerHTML = htmlProgresso();
+  form.querySelector('#barra').innerHTML = htmlBarra();
+  form.querySelector('#erro-despesa').textContent = '';
+  if (etapa === TOTAL_PASSOS) atualizarResumo();
+  window.scrollTo(0, 0);
+}
+
+function atualizarResumo() {
+  const alvo = document.getElementById('resumo-despesa');
+  if (alvo && f && etapa === TOTAL_PASSOS) alvo.innerHTML = htmlResumo(visao());
+}
+
+/** O que falta em cada etapa: [mensagem, seletor do campo, etapa]. */
+function problemaDaEtapa(n) {
+  const dados = montarDados();
+  if (n === 1) {
+    if (!(dados.valorOriginal > 0)) return ['Digite o valor da despesa.', '#valor', 1];
+    if (!dados.descricao) return ['Escreva uma descrição curta (ou toque numa sugestão).', '#descricao', 1];
+    if (!dados.categoria) return ['Escolha a categoria.', '#rotulo-categoria', 1];
+  }
+  if (n === 2 && !dados.formaPagamento) return ['Escolha a forma de pagamento.', '#area-forma', 2];
+  if (n === 3 && !dados.dataCompra) return ['Data da compra inválida.', '#area-detalhes', 3];
+  return null;
+}
+
+function mostrarProblema(raiz, problema) {
+  if (problema[2] !== etapa) irParaEtapa(problema[2]);
+  raiz.querySelector('#erro-despesa').textContent = problema[0];
+  const alvo = raiz.querySelector(problema[1]);
+  if (alvo) {
+    alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (alvo.focus && alvo.tagName === 'INPUT') setTimeout(() => alvo.focus(), 300);
+  }
+}
+
 /* ---------------- Pedaços da tela ---------------- */
 
 function categoriasVisiveis(v) {
@@ -242,7 +385,9 @@ function htmlForma(v = visao()) {
   }
   const formas = v.config.formasPagamento && v.config.formasPagamento.length ? v.config.formasPagamento.slice() : ['Cartão de Crédito', 'Dinheiro'];
   if (f.formaPagamento && !formas.includes(f.formaPagamento)) formas.push(f.formaPagamento);
-  return segmento('formaPagamento', formas, f.formaPagamento, 'seg-quebra' + (travado ? ' travado' : '')) +
+  // 1.8.0: rótulos curtos ("Crédito", "Débito") para caber numa linha só.
+  const curto = x => String(x).replace(/^Cart[aã]o de /i, '');
+  return segmento('formaPagamento', formas.map(x => ({ valor: x, rotulo: curto(x) })), f.formaPagamento, 'seg-quebra' + (travado ? ' travado' : '')) +
     '<div id="area-cartao">' + htmlCartao(v) + '</div>';
 }
 
@@ -316,6 +461,8 @@ export const telaDespesa = {
     }
 
     const titulo = modo === 'nova' ? 'Nova despesa' : modo === 'editar' ? 'Editar despesa' : 'Corrigir lançamento';
+    etapa = modo === 'nova' ? 1 : TOTAL_PASSOS;
+    const grupo = n => '<div class="etapa-grupo" data-grupo="' + n + '"' + (n === etapa ? '' : ' hidden') + '>';
 
     return cabecalho({
       titulo,
@@ -330,9 +477,11 @@ export const telaDespesa = {
         (PROTEGIDOS.includes(f.id) ? 'Registro protegido.' : 'Já houve acerto sobre esta despesa.') +
         ' Valor, moeda, data, pessoas e forma de pagamento estão bloqueados.</span></div>'
       : '') +
-    '<form id="form-despesa" novalidate>' +
+    '<form id="form-despesa" novalidate data-etapa="' + etapa + '">' +
+      '<div class="etapas-topo" id="etapas-topo">' + htmlProgresso() + '</div>' +
       '<p class="erro-form erro-topo" id="erro-despesa" role="alert"></p>' +
 
+      grupo(1) +
       '<section class="cartao">' +
         '<div class="cartao-topo">' +
           '<label class="rotulo" for="valor">VALOR</label>' +
@@ -348,38 +497,43 @@ export const telaDespesa = {
       '<section class="cartao">' +
         '<label class="rotulo" for="descricao">DESCRIÇÃO</label>' +
         '<input id="descricao" class="entrada" type="text" maxlength="300" autocomplete="off" placeholder="Ex.: Jantar, Uber para o hotel" value="' + esc(f.descricao) + '">' +
+        '<div class="sugestoes" id="sug-descricao">' + htmlSugestoes(sugestoesDescricao(v), 'data-sug-desc') + '</div>' +
         '<div class="rotulo rotulo-espaco" id="rotulo-categoria">CATEGORIA</div>' +
         '<div class="grade-cats" id="grade-cats">' + htmlCategorias(v) + '</div>' +
       '</section>' +
+      '</div>' +
 
-      '<section class="cartao">' +
+      grupo(2) +
+      '<section class="cartao cartao-quem">' +
         '<div class="rotulo">QUEM PAGOU</div>' +
         '<div id="area-pagador">' + htmlPagador(v) + '</div>' +
         '<div class="rotulo rotulo-espaco">DE QUEM É A DESPESA</div>' +
         segmento('responsavel', ['João', 'Norma', 'Compartilhada'], f.responsavel, 'seg-quebra' + (travado ? ' travado' : '')) +
         '<div id="aviso-obrig">' + htmlAviso() + '</div>' +
-      '</section>' +
-
-      '<section class="cartao">' +
-        '<div class="rotulo">FORMA DE PAGAMENTO</div>' +
+        '<div class="rotulo rotulo-espaco">FORMA DE PAGAMENTO</div>' +
         '<div id="area-forma">' + htmlForma(v) + '</div>' +
       '</section>' +
+      '</div>' +
 
+      grupo(3) +
       '<section class="cartao">' +
-        '<label class="rotulo" for="local">LOCAL</label>' +
-        '<input id="local" class="entrada" type="text" maxlength="120" autocomplete="off" placeholder="Cidade ou estabelecimento" value="' + esc(f.local) + '">' +
         '<div class="linha-dupla">' +
           '<div id="area-foto">' + htmlFoto() + '</div>' +
           '<div id="area-gps">' + htmlGps() + '</div>' +
         '</div>' +
+        '<label class="rotulo rotulo-espaco" for="local">LOCAL <span class="suave">(opcional)</span></label>' +
+        '<input id="local" class="entrada" type="text" maxlength="120" autocomplete="off" placeholder="Cidade ou estabelecimento" value="' + esc(f.local) + '">' +
+        '<div class="sugestoes" id="sug-local">' + htmlSugestoes(sugestoesLocal(v), 'data-sug-local') + '</div>' +
       '</section>' +
 
       '<div id="area-detalhes">' + htmlDetalhes(v) + '</div>' +
-
-      '<div class="barra-salvar">' +
-        '<button type="submit" class="botao botao-primario botao-grande" id="salvar">' + (modo === 'nova' ? 'Salvar despesa' : 'Salvar alterações') + '</button>' +
-        '<p class="nota-salvar" id="nota-salvar">' + (navigator.onLine ? 'Vai direto para a planilha.' : 'Sem sinal: fica guardada no iPhone e sobe sozinha depois.') + '</p>' +
       '</div>' +
+
+      grupo(4) +
+      '<section class="cartao resumo-despesa" id="resumo-despesa">' + (etapa === TOTAL_PASSOS ? htmlResumo(v) : '') + '</section>' +
+      '</div>' +
+
+      '<div class="barra-salvar" id="barra">' + htmlBarra() + '</div>' +
     '</form>';
   },
 
@@ -458,14 +612,40 @@ export const telaDespesa = {
       });
     }
 
-    $('#descricao').addEventListener('input', ev => { f.descricao = ev.target.value; });
-    $('#local').addEventListener('input', ev => { f.local = ev.target.value; });
+    const atualizarSugDescricao = () => { $('#sug-descricao').innerHTML = htmlSugestoes(sugestoesDescricao(visao()), 'data-sug-desc'); };
+    const atualizarSugLocal = () => { $('#sug-local').innerHTML = htmlSugestoes(sugestoesLocal(visao()), 'data-sug-local'); };
+
+    $('#descricao').addEventListener('input', ev => { f.descricao = ev.target.value; atualizarSugDescricao(); });
+    $('#local').addEventListener('input', ev => { f.local = ev.target.value; atualizarSugLocal(); });
+
+    // 1.8.0: tocar numa sugestão preenche (e, se faltar, traz a categoria usada antes).
+    $('#sug-descricao').addEventListener('click', ev => {
+      const b = ev.target.closest('[data-sug-desc]');
+      if (!b) return;
+      const texto = b.getAttribute('data-sug-desc');
+      const usada = sugestoesDescricao(visao()).find(s => s.texto === texto);
+      f.descricao = texto;
+      $('#descricao').value = texto;
+      if (!f.categoria && usada && usada.categoria) {
+        f.categoria = usada.categoria;
+        $('#grade-cats').innerHTML = htmlCategorias();
+      }
+      atualizarSugDescricao();
+    });
+    $('#sug-local').addEventListener('click', ev => {
+      const b = ev.target.closest('[data-sug-local]');
+      if (!b) return;
+      f.local = b.getAttribute('data-sug-local');
+      $('#local').value = f.local;
+      atualizarSugLocal();
+    });
 
     $('#grade-cats').addEventListener('click', ev => {
       const b = ev.target.closest('[data-categoria]');
       if (b) {
         f.categoria = b.getAttribute('data-categoria');
         $('#grade-cats').innerHTML = htmlCategorias();
+        atualizarSugDescricao();
         return;
       }
       if (ev.target.closest('[data-todas-categorias]')) abrirTodasCategorias(visao(), raiz);
@@ -554,6 +734,7 @@ export const telaDespesa = {
       f.gpsSituacao = posicao ? 'ok' : 'nao';
       document.getElementById('area-gps').innerHTML = htmlGps();
       ligarGps();
+      atualizarResumo();
       if (posicao && pedidoPeloToque) avisar('Local registrado' + (f.gpsPrecisao ? ' (precisão de ' + f.gpsPrecisao + ' m)' : '') + '. Ele entra no mapa quando a despesa for salva.');
       if (!posicao && pedidoPeloToque && ultimoErroLocalizacao) avisar(ultimoErroLocalizacao, 'erro');
     };
@@ -601,8 +782,38 @@ export const telaDespesa = {
 
     ligarDetalhes();
 
+    // 1.8.0: navegação entre as etapas.
+    $('#barra').addEventListener('click', ev => {
+      if (ev.target.closest('[data-anterior]')) return irParaEtapa(etapa - 1);
+      if (ev.target.closest('[data-continuar]')) {
+        const problema = problemaDaEtapa(etapa);
+        if (problema) return mostrarProblema(raiz, problema);
+        irParaEtapa(etapa + 1);
+      }
+    });
+    $('#resumo-despesa').addEventListener('click', ev => {
+      const b = ev.target.closest('[data-passo]');
+      if (b) irParaEtapa(Number(b.getAttribute('data-passo')));
+    });
+
+    // "Ir"/Enter do teclado num campo de texto vale como Continuar (sem salvar antes da hora).
+    $('#form-despesa').addEventListener('keydown', ev => {
+      if (ev.key !== 'Enter' || ev.target.tagName !== 'INPUT' || etapa >= TOTAL_PASSOS) return;
+      ev.preventDefault();
+      if (ev.target.id === 'valor' && lerNumero(f.valorTexto) > 0) return $('#descricao').focus();
+      const problema = problemaDaEtapa(etapa);
+      if (problema) return mostrarProblema(raiz, problema);
+      irParaEtapa(etapa + 1);
+    });
+
     $('#form-despesa').addEventListener('submit', ev => {
       ev.preventDefault();
+      // "Ir" do teclado antes da última etapa vale como Continuar.
+      if (etapa < TOTAL_PASSOS) {
+        const problema = problemaDaEtapa(etapa);
+        if (problema) return mostrarProblema(raiz, problema);
+        return irParaEtapa(etapa + 1);
+      }
       salvar(raiz);
     });
   },
@@ -679,21 +890,10 @@ async function salvar(raiz) {
   const erro = raiz.querySelector('#erro-despesa');
   const dados = montarDados();
 
-  const problema =
-    !(dados.valorOriginal > 0) ? ['Digite o valor da despesa.', '#valor'] :
-    !dados.descricao ? ['Escreva uma descrição curta.', '#descricao'] :
-    !dados.categoria ? ['Escolha a categoria.', '#rotulo-categoria'] :
-    !dados.dataCompra ? ['Data da compra inválida.', '#area-detalhes'] :
-    !dados.formaPagamento ? ['Escolha a forma de pagamento.', '#area-cartao'] :
-    null;
+  const problema = problemaDaEtapa(1) || problemaDaEtapa(2) || problemaDaEtapa(3);
 
   if (problema) {
-    erro.textContent = problema[0];
-    const alvo = raiz.querySelector(problema[1]);
-    if (alvo) {
-      alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (alvo.focus && alvo.tagName === 'INPUT') setTimeout(() => alvo.focus(), 300);
-    }
+    mostrarProblema(raiz, problema);
     return;
   }
 

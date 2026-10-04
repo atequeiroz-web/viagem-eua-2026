@@ -44,6 +44,7 @@ const P = {
   raio: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   etiqueta: '<path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
   fila: '<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="17" r="3"/><path d="M18 15.6V17l1 .8"/>',
+  compartilhar: '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>',
   maos: '<path d="M7 11V7a2 2 0 0 1 4 0v4M11 9V5a2 2 0 0 1 4 0v6M15 9a2 2 0 0 1 4 0v4a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-2.7L3 13.5a1.8 1.8 0 0 1 2.8-2.2L7 13"/>',
   seta: '<path d="M5 12h14M13 6l6 6-6 6"/>'
 };

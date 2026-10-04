@@ -1085,3 +1085,33 @@ body::after {
 }
 .splash-titulo small { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; opacity: 0.95; }
 @media (prefers-reduced-motion: reduce) { .splash { transition: none; } }
+
+/* 1.8.0: extrato para enviar */
+.conta-extrato { margin-top: 18px; }
+.extrato-texto { margin: 12px 0 0; padding: 14px 16px; border-radius: 14px; background: #F4F6FA; border: 1px solid var(--linha);
+  font: 600 14px/1.5 inherit; font-family: inherit; white-space: pre-wrap; word-break: break-word; color: var(--texto); user-select: text; -webkit-user-select: text; }
+
+/* 1.8.0: Nova despesa em etapas */
+.etapa-grupo[hidden] { display: none !important; }
+.etapas-topo { margin: 0 2px 14px; }
+.etapas-pontos { display: flex; gap: 6px; }
+.etapas-pontos span { flex: 1; height: 5px; border-radius: 3px; background: #DDE2EA; }
+.etapas-pontos span.feito, .etapas-pontos span.ativo { background: var(--acento); }
+.etapas-nome { margin-top: 8px; font-size: 13px; font-weight: 800; letter-spacing: .02em; color: var(--suave); }
+.barra-etapas { display: flex; gap: 10px; }
+.barra-etapas .botao-grande { flex: 1; }
+.barra-etapas .barra-anterior { flex: 0 0 auto; width: auto; padding: 0 16px 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+.barra-etapas .botao-grande:not(.barra-anterior) { width: auto; min-width: 0; }
+.sugestoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sugestoes:empty { display: none; }
+.sug-chip { max-width: 100%; padding: 8px 13px; border: 1px solid #DDE2EA; border-radius: 999px; background: #fff;
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sug-chip:active { background: var(--acento-claro); border-color: var(--acento); }
+.resumo-dica { margin: 0 0 4px; font-size: 13px; color: var(--suave); }
+.resumo-linha { display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 0; border: none; border-bottom: 1px solid var(--linha);
+  background: none; font: inherit; font-size: 15px; text-align: left; color: inherit; }
+.resumo-linha .suave { flex: 0 0 auto; }
+.resumo-linha .resumo-valor { flex: 1; text-align: right; font-weight: 700; overflow-wrap: anywhere; }
+.resumo-linha .ic { flex: 0 0 auto; color: var(--suave); }
+.resumo-despesa .aviso-obrig { margin-top: 14px; }
+.cartao-quem .cad-link { margin-top: 8px; }
