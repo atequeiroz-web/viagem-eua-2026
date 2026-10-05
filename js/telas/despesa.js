@@ -172,7 +172,15 @@ function valorGorjeta() {
   if (!f.gorjeta || !gorjetaPermitida()) return 0;
   const base = lerNumero(f.valorTexto);
   if (f.gorjeta.tipo === 'pct') return base > 0 ? arred2(base * f.gorjeta.pct / 100) : 0;
-  return arred2(lerNumero(f.gorjeta.texto || ''));
+  // 1.9.2: valor livre vazio, zero ou negativo não entra na conta (antes,
+  // vazio virava NaN e o app reclamava do valor da despesa).
+  const livre = lerNumero(f.gorjeta.texto || '');
+  return livre > 0 ? arred2(livre) : 0;
+}
+
+// 1.9.2: escolheu "Valor" na gorjeta, mas não informou um valor maior que zero.
+function gorjetaLivreSemValor() {
+  return !!(f.gorjeta && gorjetaPermitida() && f.gorjeta.tipo !== 'pct' && !(lerNumero(f.gorjeta.texto || '') > 0));
 }
 
 /** Valor que será lançado: recibo + gorjeta (quando houver). */
@@ -318,7 +326,8 @@ function atualizarResumo() {
 function problemaDaEtapa(n) {
   const dados = montarDados();
   if (n === 1) {
-    if (!(dados.valorOriginal > 0)) return ['Digite o valor da despesa.', '#valor', 1];
+    if (!(lerNumero(f.valorTexto) > 0) || !(dados.valorOriginal > 0)) return ['Digite o valor da despesa.', '#valor', 1];
+    if (gorjetaLivreSemValor()) return ['Informe o valor da gorjeta.', '#gorjeta-valor', 1];
     if (!dados.descricao) return ['Escreva uma descrição curta (ou toque numa sugestão).', '#descricao', 1];
     if (!dados.categoria) return ['Escolha a categoria.', '#rotulo-categoria', 1];
   }

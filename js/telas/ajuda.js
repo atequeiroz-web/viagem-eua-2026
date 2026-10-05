@@ -1,5 +1,7 @@
 // GUIA RÁPIDO (1.9.0): ajuda dentro do próprio app, pedida pelo usuário
 // em 05/10/2026. Cada assunto abre e fecha, para a tela não ficar poluída.
+// 1.9.2: classe raiz "guia-rapido" ("ajuda" já era o texto auxiliar da tela
+// de entrada) e emergência sem mexer na planilha.
 
 import { cabecalho } from '../ui.js';
 import { icone } from '../icones.js';
@@ -41,7 +43,8 @@ const TOPICOS = [
   ['alerta', 'Se algo der errado', [
     'Feche o app por completo e abra de novo.',
     'Veja o diário em <strong>Mais → Sobre o app</strong>.',
-    'Se o app não abrir de jeito nenhum, lance direto na planilha pelo app Google Planilhas: o cálculo acontece do mesmo jeito.',
+    'Se o app não abrir de jeito nenhum, anote a despesa no <strong>Notas</strong> e lance no app quando ele voltar. Ao lançar depois, na etapa 3, corrija a <strong>data e hora</strong> e o <strong>local</strong> (senão fica o lugar onde você está na hora de lançar).',
+    '<strong>Não altere a planilha diretamente</strong>: uma linha digitada à mão não entra nas contas.',
     '<strong>Desconectar este iPhone</strong> só em último caso: para voltar, é preciso internet e a chave de acesso.'
   ]]
 ];
@@ -51,7 +54,7 @@ export const telaAjuda = {
 
   render() {
     return cabecalho({ titulo: 'Guia rápido', sobre: 'COMO USAR', voltarPara: '/mais' }) +
-      '<div class="ajuda">' +
+      '<div class="guia-rapido">' +
       TOPICOS.map(([ic, titulo, itens]) =>
         '<details class="cartao ajuda-topico">' +
           '<summary><span class="item-ic">' + icone(ic, 20) + '</span><span class="ajuda-titulo">' + titulo + '</span>' + icone('baixo', 18, 2.2) + '</summary>' +

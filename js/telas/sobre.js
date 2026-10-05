@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.9.2', '05/10/2026', [
+    'Gorjeta por valor: o app pede o valor da gorjeta se o campo ficar vazio (antes reclamava do valor da despesa).',
+    'Guia rápido e Sobre: se o app não abrir, anote no Notas e lance depois; não altere a planilha diretamente.'
+  ]],
   ['1.9.1', '05/10/2026', [
     'Ícone novo do app, feito com a imagem da abertura (vocês dois na janela do avião).'
   ]],
@@ -186,7 +190,7 @@ export const telaSobre = {
         '<ol class="sobre-passos">' +
           '<li>Feche o app por completo e abra de novo pelo ícone.</li>' +
           '<li>Veja o diário deste iPhone (botão abaixo): ele mostra como o app abriu.</li>' +
-          '<li>Se o app não abrir, lance a despesa direto na planilha pelo app Google Planilhas. O motor processa do mesmo jeito.</li>' +
+          '<li>Se o app não abrir, anote a despesa no Notas e lance no app quando ele voltar, corrigindo a data e hora e o local na etapa 3. Não altere a planilha diretamente: uma linha digitada à mão não entra nas contas.</li>' +
         '</ol>' +
         '<button type="button" class="botao botao-secundario sobre-diario" data-diario>' + icone('fila', 18, 2) + ' Ver o diário deste iPhone</button>' +
       '</section>' +
