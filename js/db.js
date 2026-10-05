@@ -5,11 +5,21 @@
 
 const NOME = 'viagem-eua-2026';
 const VERSAO_BANCO = 1;
+const PRAZO_ABRIR_MS = 5000;   // 1.8.1: o banco nunca deixa o app parado
 let promessa = null;
 
 function abrir() {
   if (!promessa) {
     promessa = new Promise((resolver, rejeitar) => {
+      // 1.8.1: se o iPhone não abrir o banco em 5 s (ex.: exclusão pendente,
+      // falha conhecida do iOS), desiste; o app segue pela reserva ou pede a chave.
+      let terminou = false;
+      const relogio = setTimeout(() => {
+        if (terminou) return;
+        terminou = true;
+        promessa = null;
+        rejeitar(new Error('O banco do iPhone demorou a abrir.'));
+      }, PRAZO_ABRIR_MS);
       const pedido = indexedDB.open(NOME, VERSAO_BANCO);
 
       pedido.onupgradeneeded = () => {
@@ -21,14 +31,29 @@ function abrir() {
 
       pedido.onsuccess = () => {
         const db = pedido.result;
+        if (terminou) { db.close(); return; }   // chegou depois do prazo: descarta
+        terminou = true;
+        clearTimeout(relogio);
         // O iPhone às vezes derruba a ligação com o banco quando o app
         // fica em segundo plano. Se cair, a próxima leitura reabre.
         db.onclose = () => { promessa = null; };
         db.onversionchange = () => { db.close(); promessa = null; };
         resolver(db);
       };
-      pedido.onerror = () => { promessa = null; rejeitar(pedido.error); };
-      pedido.onblocked = () => { promessa = null; rejeitar(new Error('Armazenamento ocupado.')); };
+      pedido.onerror = () => {
+        if (terminou) return;
+        terminou = true;
+        clearTimeout(relogio);
+        promessa = null;
+        rejeitar(pedido.error);
+      };
+      pedido.onblocked = () => {
+        if (terminou) return;
+        terminou = true;
+        clearTimeout(relogio);
+        promessa = null;
+        rejeitar(new Error('Armazenamento ocupado.'));
+      };
     });
   }
   return promessa;
@@ -161,19 +186,58 @@ export async function filaRemover(opId) {
 export const fotoLer = chave => executar('fotos', 'readonly', s => s.get(chave));
 export const fotoGravar = (chave, dados) => executar('fotos', 'readwrite', s => s.put(dados, chave));
 
+/*
+ * DESCONECTAR (1.8.1). Duas garantias independentes:
+ *  1. Desconexão lógica: as três gavetas (kv, fila, fotos) são esvaziadas
+ *     numa única transação, e as cópias do localStorage (acesso, planilha,
+ *     fila) são removidas. A partir daí, reabrir o app pede a chave.
+ *  2. Limpeza física: deleteDatabase. "Bloqueado" NÃO é sucesso nem falha:
+ *     a exclusão fica pendente e termina quando a outra conexão fechar.
+ *     Espera até 4 s; se não terminar, só anota no diário.
+ * O diário é mantido (não tem chave nem dá acesso à planilha).
+ */
+const PRAZO_APAGAR_MS = 4000;
+
 export async function apagarTudo() {
+  let esvaziado = false;
+  try {
+    const db = await abrir();
+    await new Promise((resolver, rejeitar) => {
+      const t = db.transaction(['kv', 'fila', 'fotos'], 'readwrite');
+      t.objectStore('kv').clear();
+      t.objectStore('fila').clear();
+      t.objectStore('fotos').clear();
+      t.oncomplete = () => resolver();
+      t.onerror = () => rejeitar(t.error);
+      t.onabort = () => rejeitar(t.error || new Error('Limpeza cancelada.'));
+    });
+    esvaziado = true;
+  } catch (erro) {
+    registrarDiario('desconectar: não deu para esvaziar o banco (' + (erro && (erro.name || erro.message)) + ')');
+  }
+
   backupApagar();
   try { localStorage.removeItem(CHAVE_COPIA); localStorage.removeItem(CHAVE_FILA); } catch (e) { /* nada */ }
-  const db = await abrir();
-  db.close();
+
+  try { if (promessa) (await promessa).close(); } catch (e) { /* já estava fechado */ }
   promessa = null;
 
-  await new Promise((resolver, rejeitar) => {
-    const pedido = indexedDB.deleteDatabase(NOME);
-    pedido.onsuccess = () => resolver();
-    pedido.onerror = () => rejeitar(pedido.error);
-    pedido.onblocked = () => resolver();
+  const resultado = await new Promise(resolver => {
+    let fim = false;
+    const terminar = r => { if (!fim) { fim = true; clearTimeout(relogio); resolver(r); } };
+    const relogio = setTimeout(() => terminar('pendente'), PRAZO_APAGAR_MS);
+    let pedido;
+    try { pedido = indexedDB.deleteDatabase(NOME); } catch (e) { return terminar('erro'); }
+    pedido.onsuccess = () => terminar('apagado');
+    pedido.onerror = () => terminar('erro');
+    pedido.onblocked = () => registrarDiario('desconectar: exclusão do banco aguardando outra conexão fechar');
   });
+
+  if (resultado !== 'apagado') {
+    registrarDiario('desconectar: banco ' + (resultado === 'pendente' ? 'ainda sendo liberado pelo iPhone' : 'não foi apagado') +
+      (esvaziado ? ' (acesso e dados já esvaziados)' : ' — ATENÇÃO: não foi possível esvaziar'));
+  }
+  return { esvaziado, apagado: resultado === 'apagado' };
 }
 
 /** Pede ao iOS para não apagar os dados do app por falta de espaço. */

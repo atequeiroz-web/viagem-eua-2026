@@ -12,6 +12,10 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.8.1', '04/10/2026', [
+    'Desconectar este iPhone apaga o acesso e os dados de forma garantida, mesmo que o iPhone demore a liberar o armazenamento.',
+    'Se o armazenamento do iPhone travar ao abrir, o app não fica parado: segue pela reserva ou pede a chave.'
+  ]],
   ['1.8.0', '04/10/2026', [
     'Nova despesa em 4 etapas, com "Continuar": quanto e o quê; quem pagou e de quem é; comprovante e local; conferir e salvar.',
     'Sugestões por toque: as descrições e os locais já usados aparecem para tocar, sem digitar.',

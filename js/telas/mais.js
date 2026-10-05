@@ -58,8 +58,10 @@ export const telaMais = {
         perigo: true
       });
       if (!ok) return;
-      await desconectar();
+      const r = await desconectar();
       ir('/inicio', true);
+      // Só avisa no caso raro em que nem esvaziar nem apagar o banco deu certo.
+      if (r && !r.esvaziado && !r.apagado) avisar('Não deu para apagar tudo agora. Feche o app e toque em Desconectar de novo.', 'erro');
     });
   }
 };

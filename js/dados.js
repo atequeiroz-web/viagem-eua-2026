@@ -139,11 +139,11 @@ export async function configurar(usuario, chave) {
   await db.kvGravar('chave', chave);
   db.backupGravar(pessoa.nome, chave);
   db.registrarDiario('configurado para ' + pessoa.nome);
+  estado.usuario = pessoa.nome;
+  estado.chave = chave;
   await guardarSnapshot(r.snapshot);
   await db.pedirArmazenamentoPersistente();
 
-  estado.usuario = pessoa.nome;
-  estado.chave = chave;
   estado.chaveInvalida = false;
   estado.ultimoErro = null;
   notificar();
@@ -171,7 +171,7 @@ export async function trocarChave(chave) {
 
 export async function desconectar() {
   db.registrarDiario('desconectado pelo botão "Desconectar este iPhone"');
-  await db.apagarTudo();
+  const r = await db.apagarTudo();
   estado.usuario = null;
   estado.chave = null;
   estado.snapshot = null;
@@ -179,6 +179,7 @@ export async function desconectar() {
   estado.ultimaSync = null;
   estado.ultimoErro = null;
   notificar();
+  return r;
 }
 
 let snapshotGuardadoNestaAbertura = false;
@@ -189,6 +190,8 @@ async function guardarSnapshot(snapshot) {
     db.registrarDiario('resposta da ponte veio sem a cópia da planilha (ignorada)');
     return;
   }
+  // 1.8.1: resposta que chega depois do "Desconectar" não é guardada.
+  if (!estado.chave) return;
   estado.snapshot = snapshot;
   estado.ultimaSync = new Date().toISOString();
   const reservaOk = db.copiaGravar(snapshot);
