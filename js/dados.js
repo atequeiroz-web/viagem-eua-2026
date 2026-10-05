@@ -519,6 +519,7 @@ export function visao() {
       if (!v.despesas.some(x => x.id === d.id)) {
         v.despesas.push({
           ...despesaDeDados(d),
+          lancadoEm: d.criadoEm || '',
           ...marca,
           comprovante: d.foto ? 'fila:' + op.opId : '',
           lancadoPor: estado.usuario,

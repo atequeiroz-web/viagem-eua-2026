@@ -71,7 +71,7 @@ export const telaResumo = {
     return cabecalho({
       sobre: viagem.rotulo,
       titulo: 'Resumo',
-      direita: '<button type="button" class="botao-icone" data-ir="/mais" aria-label="Mais opções">' + icone('menu', 24, 2.4) + '</button>'
+      direita: '<button type="button" class="botao-mais" data-ir="/mais" aria-label="Mais opções e guia rápido">' + icone('menu', 18, 2.6) + '<span>Mais</span></button>'
     }) +
     cartaoViagem(v, rViagem, viagem) +
     cardDias(v, rViagem, viagem) +

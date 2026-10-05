@@ -33,6 +33,7 @@ export const telaMais = {
         '<li>' + link('/relatorios', 'recibo', 'Relatórios', 'Extrato, por pessoa, por cartão, dívidas e montado') + '</li>' +
         '<li>' + link('/fundos', 'dinheiro', 'Dinheiro em espécie', 'Compras de dólar e guarani e saldos') + '</li>' +
         '<li>' + link('/cadastros', 'usuario', 'Cadastros', 'Pagadores, cartões e categorias') + '</li>' +
+        '<li>' + link('/ajuda', 'mala', 'Guia rápido', 'Como lançar, pagar dívidas, usar sem sinal e o que fazer se algo der errado') + '</li>' +
         '<li>' + link('/sobre', 'info', 'Sobre o app', 'Versão ' + esc(VERSAO) + ' · componentes, novidades e ajuda') + '</li>' +
       '</ul>' +
       '<div class="area-botao"><button type="button" class="botao botao-secundario botao-grande" data-atualizar>' + icone('atualizar', 20, 2.2) + ' Atualizar dados agora</button></div>' +

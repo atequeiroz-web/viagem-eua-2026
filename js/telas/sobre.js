@@ -12,6 +12,11 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.9.0', '05/10/2026', [
+    'Guia rápido dentro do app: Mais → Guia rápido.',
+    'Botão "Mais" mais visível no Resumo e em Contas.',
+    'Aviso de lançamento repetido: se a mesma despesa for salva de novo em menos de 10 minutos, o app pergunta antes (nunca impede).'
+  ]],
   ['1.8.2', '04/10/2026', [
     'Gorjeta na Nova despesa (em US$): digite o total do recibo e toque em 15%, 18%, 20% ou informe o valor; o app lança o total e anota a conta na observação.',
     'Categoria "Gorjetas" (para gorjeta paga à parte: camareira, valet, guia) com ícone e cor próprios, quando for cadastrada.',

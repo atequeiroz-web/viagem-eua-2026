@@ -1,7 +1,7 @@
 // Service worker: guarda o app no iPhone para abrir sem sinal.
 // Ao publicar uma versão nova, aumente VERSAO (igual a js/config.js).
 
-const VERSAO = '1.8.2';
+const VERSAO = '1.9.0';
 const CACHE = 'viagem-eua-' + VERSAO;
 // Pedaços do mapa já vistos: guardados à parte, valem entre versões.
 const CACHE_MAPA = 'viagem-eua-mapa';
@@ -37,6 +37,7 @@ const ARQUIVOS = [
   'js/telas/relatorio.js',
   'js/telas/cadastros.js',
   'js/telas/sobre.js',
+  'js/telas/ajuda.js',
   'js/telas/mapa.js',
   'vendor/leaflet/leaflet.js',
   'vendor/leaflet/leaflet.css',

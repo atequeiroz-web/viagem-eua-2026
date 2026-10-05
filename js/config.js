@@ -1,8 +1,8 @@
 // Configuração do app. Ao publicar uma versão nova, aumente
 // VERSAO aqui e também em sw.js (as duas precisam ser iguais).
 
-export const VERSAO = '1.8.2';
-export const DATA_VERSAO = '04/10/2026';
+export const VERSAO = '1.9.0';
+export const DATA_VERSAO = '05/10/2026';
 
 // Versão do motor financeiro instalado na planilha cópia (informativo).
 export const VERSAO_MOTOR = 'v8.0.3';

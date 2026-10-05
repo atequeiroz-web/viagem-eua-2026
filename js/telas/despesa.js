@@ -961,6 +961,28 @@ function montarDados() {
   };
 }
 
+/*
+ * 1.9.0: aviso de lançamento repetido (critérios do usuário, 05/10/2026):
+ * tudo igual (valor, moeda, descrição, quem pagou e de quem é), lançada há
+ * menos de 10 minutos e que ainda exista (excluída não conta). Só pergunta;
+ * nunca impede.
+ */
+const JANELA_REPETIDA_MS = 10 * 60 * 1000;
+
+function despesaRepetida(v, dados) {
+  const agora = Date.now();
+  return v.despesas.find(d => {
+    if (d._fila === 'recusada') return false;
+    const quando = new Date(d.lancadoEm || 0).getTime();
+    if (!(quando > 0) || agora - quando > JANELA_REPETIDA_MS || agora - quando < -60000) return false;
+    return arred2(num(d.valorOriginal)) === arred2(num(dados.valorOriginal)) &&
+      d.moeda === dados.moeda &&
+      normalizar(d.descricao) === normalizar(dados.descricao) &&
+      normalizar(d.quemPagou) === normalizar(dados.quemPagou) &&
+      normalizar(d.responsavel) === normalizar(dados.responsavel);
+  }) || null;
+}
+
 async function salvar(raiz) {
   const erro = raiz.querySelector('#erro-despesa');
   const dados = montarDados();
@@ -982,6 +1004,21 @@ async function salvar(raiz) {
     if (f.valorEfetivoTexto !== efetivoAntes) {
       const ef = arred2(lerNumero(f.valorEfetivoTexto));
       dados.valorEfetivo = ef > 0 ? ef : '';
+    }
+  }
+
+  if (modo === 'nova') {
+    const igual = despesaRepetida(visao(), dados);
+    if (igual) {
+      const min = Math.max(1, Math.round((Date.now() - new Date(igual.lancadoEm).getTime()) / 60000));
+      const seguir = await confirmar({
+        titulo: 'Parece repetida',
+        texto: 'Há ' + min + ' min foi lançada uma despesa igual: <strong>' + esc(igual.descricao) + ' · ' +
+          esc(moeda(igual.valorOriginal, igual.moeda)) + ' · pagou ' + esc(igual.quemPagou) + '</strong>. Salvar mesmo assim?',
+        sim: 'Salvar mesmo assim',
+        nao: 'Não salvar'
+      });
+      if (!seguir) return;
     }
   }
 

@@ -169,7 +169,7 @@ export const telaContas = {
     return cabecalho({
       sobre: 'QUEM DEVE A QUEM',
       titulo: 'Contas',
-      direita: '<button type="button" class="botao-icone" data-ir="/mais" aria-label="Mais opções">' + icone('menu', 24, 2.4) + '</button>'
+      direita: '<button type="button" class="botao-mais" data-ir="/mais" aria-label="Mais opções e guia rápido">' + icone('menu', 18, 2.6) + '<span>Mais</span></button>'
     }) +
     '<div class="posicao">' +
       '<div class="pos pos-receber"><div class="pos-rotulo">' + esc(estado.usuario) + ' tem a receber</div>' + linhasMoeda(pos.receber) + '</div>' +

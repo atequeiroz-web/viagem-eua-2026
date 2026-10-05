@@ -1123,3 +1123,16 @@ body::after {
 .gorjeta-valor { margin-top: 10px; }
 .gorjeta-conta { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--acento-escuro); }
 .gorjeta-conta:empty { display: none; }
+
+/* 1.9.0: botão "Mais" visível no Resumo e em Contas; guia rápido */
+.botao-mais { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px 7px 9px; border: 1px solid #DDE2EA; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85); font: inherit; font-size: 14px; font-weight: 800; color: var(--texto); white-space: nowrap; }
+.botao-mais:active { background: var(--acento-claro); border-color: var(--acento); }
+.ajuda { display: flex; flex-direction: column; gap: 12px; }
+.ajuda-topico { padding: 0; }
+.ajuda-topico summary { display: flex; align-items: center; gap: 12px; padding: 16px 18px; list-style: none; cursor: pointer; }
+.ajuda-topico summary::-webkit-details-marker { display: none; }
+.ajuda-titulo { flex: 1; font-size: 16px; font-weight: 800; }
+.ajuda-topico summary > .ic { color: var(--suave); transition: transform .2s ease; }
+.ajuda-topico[open] summary > .ic { transform: rotate(180deg); }
+.ajuda-lista { margin: 0; padding: 0 18px 16px 40px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.45; }
