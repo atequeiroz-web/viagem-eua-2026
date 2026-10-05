@@ -71,6 +71,7 @@ const POR_CATEGORIA = {
   'taxas e tarifas': 'recibo',
   'hospedagem': 'cama',
   'imprevistos': 'raio',
+  'gorjetas': 'dinheiro',
   'outros': 'etiqueta'
 };
 
@@ -93,6 +94,7 @@ const COR_CATEGORIA = {
   'taxas e tarifas': ['ardosia', '#5C677D'],
   'hospedagem': ['ameixa', '#9C36B5'],
   'imprevistos': ['ambar', '#E67700'],
+  'gorjetas': ['folha', '#2B8A3E'],
   'outros': ['ardosia', '#5C677D']
 };
 

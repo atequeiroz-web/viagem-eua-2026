@@ -1115,3 +1115,11 @@ body::after {
 .resumo-linha .ic { flex: 0 0 auto; color: var(--suave); }
 .resumo-despesa .aviso-obrig { margin-top: 14px; }
 .cartao-quem .cad-link { margin-top: 8px; }
+
+/* 1.8.2: gorjeta */
+.gorjeta-link { margin-top: 10px; }
+.gorjeta { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linha); }
+.gorjeta .seg { margin-top: 8px; }
+.gorjeta-valor { margin-top: 10px; }
+.gorjeta-conta { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--acento-escuro); }
+.gorjeta-conta:empty { display: none; }

@@ -12,6 +12,11 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.8.2', '04/10/2026', [
+    'Gorjeta na Nova despesa (em US$): digite o total do recibo e toque em 15%, 18%, 20% ou informe o valor; o app lança o total e anota a conta na observação.',
+    'Categoria "Gorjetas" (para gorjeta paga à parte: camareira, valet, guia) com ícone e cor próprios, quando for cadastrada.',
+    'Desconectar encerra a sessão na hora: uma resposta da planilha que chegue depois é descartada.'
+  ]],
   ['1.8.1', '04/10/2026', [
     'Desconectar este iPhone apaga o acesso e os dados de forma garantida, mesmo que o iPhone demore a liberar o armazenamento.',
     'Se o armazenamento do iPhone travar ao abrir, o app não fica parado: segue pela reserva ou pede a chave.'

@@ -155,6 +155,55 @@ function aplicarRegrasPagador(v) {
   }
 }
 
+/* ---------------- Gorjeta (1.8.2) ----------------
+   Decisão de 04/10/2026: só gorjeta, sem botão de imposto (o imposto varia
+   por estado e por tipo de compra, e já vem somado no recibo). Você digita o
+   total do recibo e escolhe 15%, 18%, 20% ou um valor; o valor lançado passa
+   a ser recibo + gorjeta, e a conta fica anotada na observação. Só em US$ e
+   só na Nova despesa (numa edição, o valor já é o total). */
+
+const PERCENTUAIS_GORJETA = [15, 18, 20];
+
+function gorjetaPermitida() {
+  return modo === 'nova' && !travado && f.moeda === 'USD';
+}
+
+function valorGorjeta() {
+  if (!f.gorjeta || !gorjetaPermitida()) return 0;
+  const base = lerNumero(f.valorTexto);
+  if (f.gorjeta.tipo === 'pct') return base > 0 ? arred2(base * f.gorjeta.pct / 100) : 0;
+  return arred2(lerNumero(f.gorjeta.texto || ''));
+}
+
+/** Valor que será lançado: recibo + gorjeta (quando houver). */
+function valorFinal() {
+  return arred2(lerNumero(f.valorTexto) + valorGorjeta());
+}
+
+function textoGorjeta() {
+  const g = valorGorjeta();
+  if (!(g > 0)) return '';
+  const rotulo = f.gorjeta.tipo === 'pct' ? 'gorjeta ' + f.gorjeta.pct + '%' : 'gorjeta';
+  return 'Recibo ' + moeda(lerNumero(f.valorTexto), 'USD') + ' + ' + rotulo + ' ' + moeda(g, 'USD') + ' = ' + moeda(valorFinal(), 'USD');
+}
+
+function htmlGorjeta() {
+  if (!gorjetaPermitida()) return '';
+  if (!f.gorjeta && !f.gorjetaAberta) {
+    return '<button type="button" class="link-forte gorjeta-link" data-gorjeta-abrir>' + icone('mais', 16, 2.4) + ' Gorjeta</button>';
+  }
+  const atual = !f.gorjeta ? 'sem' : f.gorjeta.tipo === 'pct' ? String(f.gorjeta.pct) : 'outro';
+  const opcoes = [{ valor: 'sem', rotulo: 'Sem' }].concat(PERCENTUAIS_GORJETA.map(p => ({ valor: String(p), rotulo: p + '%' })), [{ valor: 'outro', rotulo: 'Valor' }]);
+  return '<div class="gorjeta">' +
+    '<div class="rotulo">GORJETA <span class="suave">(sobre o total do recibo)</span></div>' +
+    segmento('gorjeta', opcoes, atual, 'seg-pequeno') +
+    (atual === 'outro'
+      ? '<div class="entrada-valor-pequena gorjeta-valor"><span>US$</span><input id="gorjeta-valor" class="entrada" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' + esc(f.gorjeta.texto || '') + '"></div>'
+      : '') +
+    '<p class="gorjeta-conta" id="gorjeta-conta">' + esc(textoGorjeta()) + '</p>' +
+  '</div>';
+}
+
 /* ---------------- Sugestões por toque (1.8.0) ---------------- */
 
 function maisRecentes(v) {
@@ -225,12 +274,12 @@ function formaTexto(v) {
 }
 
 function htmlResumo(v) {
-  const valor = lerNumero(f.valorTexto);
+  const valor = valorFinal();
   const est = f.moeda !== 'BRL' && valor > 0 ? estimarBRL(valor, f.moeda, v.cotacoes) : 0;
   const local = (f.local.trim() || '—') + (f.gps ? ' · no mapa' : f.gpsSituacao === 'buscando' ? ' · buscando local…' : '');
   const foto = f.foto ? 'com foto' : f.comprovante ? 'já registrado' : 'sem foto';
   const linhas = [
-    [1, 'Valor', moeda(valor, f.moeda) + (est ? ' (≈ ' + moeda(est) + ')' : '')],
+    [1, 'Valor', moeda(valor, f.moeda) + (valorGorjeta() > 0 ? ' · com gorjeta de ' + moeda(valorGorjeta(), 'USD') : '') + (est ? ' (≈ ' + moeda(est) + ')' : '')],
     [1, 'O quê', (f.descricao.trim() || '—') + (f.categoria ? ' · ' + f.categoria : '')],
     [2, 'Quem pagou', f.quemPagou + ' · ' + formaTexto(v)],
     [2, 'De quem é', f.responsavel],
@@ -322,7 +371,7 @@ function htmlCategorias(v = visao()) {
 }
 
 function htmlConversao(v) {
-  const valor = lerNumero(f.valorTexto);
+  const valor = valorFinal();
   if (f.moeda === 'BRL') return '';
   const efetivo = lerNumero(f.valorEfetivoTexto);
   if (modo !== 'nova' && efetivo > 0) {
@@ -337,7 +386,7 @@ function htmlConversao(v) {
 }
 
 function htmlAviso() {
-  const valor = lerNumero(f.valorTexto);
+  const valor = valorFinal();
   const lista = previaObrigacoes({ valor, moeda: f.moeda, quemPagou: f.quemPagou, responsavel: f.responsavel });
 
   if (!(valor > 0)) return '';
@@ -492,6 +541,7 @@ export const telaDespesa = {
           '<input id="valor" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' + esc(f.valorTexto) + '"' + (travado ? ' disabled' : '') + '>' +
         '</div>' +
         '<div class="conversao" id="conversao">' + htmlConversao(v) + '</div>' +
+        '<div id="area-gorjeta">' + htmlGorjeta() + '</div>' +
       '</section>' +
 
       '<section class="cartao">' +
@@ -545,14 +595,39 @@ export const telaDespesa = {
     const atualizarValor = () => {
       $('#conversao').innerHTML = htmlConversao(v);
       $('#aviso-obrig').innerHTML = htmlAviso();
+      const conta = $('#gorjeta-conta');
+      if (conta) conta.textContent = textoGorjeta();
     };
+
+    // 1.8.2: gorjeta
+    const ligarGorjeta = () => {
+      const area = $('#area-gorjeta');
+      const abrir = area.querySelector('[data-gorjeta-abrir]');
+      if (abrir) abrir.addEventListener('click', () => { f.gorjetaAberta = true; redesenharGorjeta(); });
+      ligarSegmento(area, 'gorjeta', valor => {
+        if (valor === 'sem') f.gorjeta = null;
+        else if (valor === 'outro') f.gorjeta = { tipo: 'valor', texto: (f.gorjeta && f.gorjeta.texto) || '' };
+        else f.gorjeta = { tipo: 'pct', pct: Number(valor) };
+        redesenharGorjeta();
+        if (valor === 'outro') setTimeout(() => { const c = $('#gorjeta-valor'); if (c) c.focus(); }, 50);
+      });
+      const campo = area.querySelector('#gorjeta-valor');
+      if (campo) campo.addEventListener('input', () => { f.gorjeta.texto = campo.value; atualizarValor(); });
+    };
+    const redesenharGorjeta = () => {
+      if (!gorjetaPermitida()) { f.gorjeta = null; f.gorjetaAberta = false; }
+      $('#area-gorjeta').innerHTML = htmlGorjeta();
+      ligarGorjeta();
+      atualizarValor();
+    };
+    ligarGorjeta();
 
     const ligarMoeda = () => {
       if (travado || ehTerceiro(visao(), f.quemPagou)) return;
       ligarSegmento($('#area-moeda'), 'moeda', valor => {
         f.moeda = valor;
         $('#simbolo').textContent = simboloMoeda(valor);
-        atualizarValor();
+        redesenharGorjeta();
         $('#area-detalhes').innerHTML = htmlDetalhes(v);
         ligarDetalhes();
       });
@@ -577,7 +652,7 @@ export const telaDespesa = {
       $('#area-moeda').innerHTML = htmlMoeda(atual);
       $('#simbolo').textContent = simboloMoeda(f.moeda);
       $('#area-forma').innerHTML = htmlForma(atual);
-      atualizarValor();
+      redesenharGorjeta();
       $('#area-detalhes').innerHTML = htmlDetalhes(atual);
       ligarDetalhes();
       ligarPagador();
@@ -882,7 +957,7 @@ function montarDados() {
     observacao: f.observacao.trim(),
     gps: f.gps || '',
     moeda: f.moeda,
-    valorOriginal: arred2(lerNumero(f.valorTexto))
+    valorOriginal: valorFinal()
   };
 }
 
@@ -899,6 +974,8 @@ async function salvar(raiz) {
 
   erro.textContent = '';
   if (f.foto) dados.foto = f.foto;
+  const contaGorjeta = textoGorjeta();
+  if (contaGorjeta) dados.observacao = (contaGorjeta + '.' + (dados.observacao ? ' ' + dados.observacao : '')).slice(0, 500);
 
   if (modo !== 'nova') {
     const efetivoAntes = num(original.valorEfetivo) > 0 ? numeroBR(original.valorEfetivo, 2) : '';

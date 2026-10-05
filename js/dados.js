@@ -171,7 +171,8 @@ export async function trocarChave(chave) {
 
 export async function desconectar() {
   db.registrarDiario('desconectado pelo botão "Desconectar este iPhone"');
-  const r = await db.apagarTudo();
+  // 1.8.2: a sessão morre ANTES de apagar. Uma resposta da planilha que
+  // ainda esteja a caminho encontra a chave vazia e é descartada.
   estado.usuario = null;
   estado.chave = null;
   estado.snapshot = null;
@@ -179,7 +180,7 @@ export async function desconectar() {
   estado.ultimaSync = null;
   estado.ultimoErro = null;
   notificar();
-  return r;
+  return db.apagarTudo();
 }
 
 let snapshotGuardadoNestaAbertura = false;
@@ -314,6 +315,8 @@ function montarLote(lista) {
 
 async function executarSincronizacao() {
   if (!estado.chave) return;
+  const chaveDaVez = estado.chave;
+  const sessaoMudou = () => estado.chave !== chaveDaVez;   // 1.8.2: Desconectar no meio
 
   if (!navigator.onLine) {
     estado.online = false;
@@ -328,6 +331,7 @@ async function executarSincronizacao() {
 
   if (!lista.length) {
     const r = await chamar({ chave: estado.chave, acao: 'snapshot' });
+    if (sessaoMudou()) return;
     if (!r.ok) return tratarFalha(r);
     estado.ultimoErro = null;
     estado.chaveInvalida = false;
@@ -348,6 +352,7 @@ async function executarSincronizacao() {
       operacoes: lote.map(o => ({ opId: o.opId, tipo: o.tipo, dados: o.dados }))
     }, 150000);
 
+    if (sessaoMudou()) return;
     if (!r.ok) return tratarFalha(r);
 
     estado.ultimoErro = null;
