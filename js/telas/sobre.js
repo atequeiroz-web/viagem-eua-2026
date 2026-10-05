@@ -12,6 +12,9 @@ import { VERSAO, DATA_VERSAO, VERSAO_MOTOR } from '../config.js';
 
 // Da mais nova para a mais antiga. Ao publicar, acrescente no topo.
 const NOVIDADES = [
+  ['1.9.1', '05/10/2026', [
+    'Ícone novo do app, feito com a imagem da abertura (vocês dois na janela do avião).'
+  ]],
   ['1.9.0', '05/10/2026', [
     'Guia rápido dentro do app: Mais → Guia rápido.',
     'Botão "Mais" mais visível no Resumo e em Contas.',
